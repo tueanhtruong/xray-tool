@@ -60,8 +60,30 @@
         "pnpm test:int tests/integration/error-handler.test.ts",
         "pnpm test:e2e e2e/us-01-request-id.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "1fdc2f5585ca5e99d43a3ff56a30f1b4e5268f6a",
+        "verifiedAt": "2026-09-29T07:58:06.376Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 15449
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/security",
+            "durationMs": 591
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/error-handler.test.ts",
+            "durationMs": 1880
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-01-request-id.spec.ts",
+            "durationMs": 2164
+          }
+        ]
+      }
     },
     {
       "id": "US-02",
