@@ -52,4 +52,4 @@
 
 - [x] 8.1 Run `pnpm check`, `pnpm test:unit tests/unit/security`, `pnpm test:int tests/integration/error-handler.test.ts`, `pnpm test:int` (all existing built-server tests still pass), and `pnpm test:e2e e2e/us-01-request-id.spec.ts`; confirm no stray `console.log`, debug code, or temp files
 - [x] 8.2 Append a dated entry to `docs/progress.md` (done, in progress, next, open questions)
-- [ ] 8.3 Run `pnpm verify US-01` (the only way to set `passing`), then commit as `US-01: security foundation`
+- [x] 8.3 Run `pnpm verify US-01` (the only way to set `passing`), then commit as `US-01: security foundation`
