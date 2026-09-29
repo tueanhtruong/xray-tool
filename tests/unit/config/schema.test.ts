@@ -98,3 +98,31 @@ describe('toEnvName', () => {
     expect(toEnvName(key)).toBe(env)
   })
 })
+
+describe('encryption key', () => {
+  const VALID_KEY = Buffer.alloc(32, 7).toString('base64')
+
+  it('is optional', () => {
+    const result = parseServerConfig(runtimeConfig({ databaseUrl: DB, encryptionKey: '' }))
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts 32 bytes of base64', () => {
+    const result = parseServerConfig(runtimeConfig({ databaseUrl: DB, encryptionKey: VALID_KEY }))
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.config.encryptionKey).toBe(VALID_KEY)
+  })
+
+  it.each([
+    ['16 bytes', Buffer.alloc(16, 7).toString('base64')],
+    ['not base64', 'not base64 !!!'],
+  ])('rejects %s with an actionable message that does not echo the value', (_label, key) => {
+    const result = parseServerConfig(runtimeConfig({ databaseUrl: DB, encryptionKey: key }))
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.message).toContain('NUXT_ENCRYPTION_KEY')
+    expect(result.message).toContain('32-byte')
+    expect(result.message).toContain('openssl rand -base64 32')
+    expect(result.message).not.toContain(key)
+  })
+})

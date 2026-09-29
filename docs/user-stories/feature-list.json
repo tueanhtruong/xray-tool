@@ -60,7 +60,7 @@
         "pnpm test:int tests/integration/error-handler.test.ts",
         "pnpm test:e2e e2e/us-01-request-id.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {

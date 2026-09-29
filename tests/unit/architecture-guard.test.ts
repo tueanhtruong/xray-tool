@@ -63,3 +63,28 @@ describe('architecture guard: shared/', () => {
     expect(messages).toEqual([])
   })
 })
+
+describe('no console output in server code', () => {
+  const file = 'server/utils/console-guard-sample.ts'
+
+  async function consoleMessages(code: string) {
+    const [result] = await eslint.lintText(code, { filePath: file })
+    return (result?.messages ?? []).filter((m) => m.ruleId === 'no-console')
+  }
+
+  it.each(['log', 'info', 'debug', 'dir'])('rejects console.%s', async (method) => {
+    const messages = await consoleMessages(`console.${method}('x')\nexport const x = 1\n`)
+    expect(messages.length).toBeGreaterThan(0)
+  })
+
+  it.each(['error', 'warn'])('allows console.%s for startup failure output', async (method) => {
+    expect(await consoleMessages(`console.${method}('x')\nexport const x = 1\n`)).toEqual([])
+  })
+
+  it('does not apply outside server/', async () => {
+    const [result] = await eslint.lintText("console.log('x')\nexport const x = 1\n", {
+      filePath: 'shared/utils/console-guard-sample.ts',
+    })
+    expect((result?.messages ?? []).filter((m) => m.ruleId === 'no-console')).toEqual([])
+  })
+})

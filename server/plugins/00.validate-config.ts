@@ -1,4 +1,5 @@
 import { parseServerConfig } from '#shared/config/schema'
+import { logger } from '../utils/logger'
 
 /**
  * Fail fast on invalid runtime configuration. Runs when the server starts
@@ -9,5 +10,11 @@ export default defineNitroPlugin(() => {
   if (!result.success) {
     console.error(result.message)
     throw new Error('Server configuration is invalid; see the message above.')
+  }
+  if (!result.config.encryptionKey) {
+    logger.warn(
+      'NUXT_ENCRYPTION_KEY is not set; saving Jira/Xray credentials will fail until it is. ' +
+        'Generate one with: openssl rand -base64 32',
+    )
   }
 })

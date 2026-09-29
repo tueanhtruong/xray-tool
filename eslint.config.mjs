@@ -85,5 +85,12 @@ export default withNuxt(
     files: ['shared/**/*.{js,mjs,ts}'],
     rules: { 'no-restricted-imports': ['error', sharedRestrictions] },
   },
+  {
+    // Server code logs through the structured logger (server/utils/logger.ts), which redacts
+    // secrets. console.error/warn stay allowed for startup failures printed before it exists.
+    name: 'xray-tool/server/no-console',
+    files: ['server/**/*.{js,mjs,ts}'],
+    rules: { 'no-console': ['error', { allow: ['error', 'warn'] }] },
+  },
   prettier,
 )

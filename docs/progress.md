@@ -2,6 +2,42 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-29 — US-01 security foundation
+
+**Done**
+
+- `shared/security`: pure redaction (key deny-list normalized for case/`_`/`-`, value scrubbing of
+  Bearer/Basic, JWT, Atlassian API tokens, URL credentials, registered secrets), `SecretString`,
+  request-ID validation, client-error mapping, encryption-key format check.
+- `server/utils/crypto.ts`: AES-256-GCM, `v1:<keyId>:<iv>:<tag>:<ciphertext>`, derived `keyId`,
+  optional AAD context, single `DecryptionError`, clear error when no key is configured.
+- Config: `NUXT_ENCRYPTION_KEY` optional but validated when set (fail-fast message with the
+  `openssl` command, never echoing the value); one startup warning when unset; `init.sh` generates
+  a local key into `.env` (idempotent).
+- Structured JSON logger (stdout, redacted), request IDs via Nitro async context, access log per
+  request (response `finish` event), global error handler (`{ statusCode, message, requestId }`,
+  chained ahead of Nuxt's page handler from a `nitro:config` hook), `httpError()`.
+- Lint bans `console.log/info/debug/dir` in `server/**` (replaces the CI grep).
+- Test harness pipes server stdout (`logs()` / `output()`) and injects a test-only key.
+- Docs: `docs/security.md`, `docs/quality.md`, ADR 0010. Health route now logs probe failures.
+- `pnpm check`, `test:int` (39), `test:e2e` (6) all green locally.
+
+**In progress**
+
+- US-01 stays `active`. `pnpm verify US-01` needs a clean, committed tree; commit first, then run it.
+
+**Next**
+
+- Commit `US-01: security foundation`, `pnpm verify US-01`, commit `US-01: mark passing`.
+- Then US-02 (Jira OAuth). It is the first consumer: use `encryptSecret(..., { context })` and
+  `httpError()`, and log upstream traffic only through the logger.
+
+**Open questions**
+
+- Nuxt's own handler still prints raw page-render errors to stderr outside the redactor
+  (docs/security.md). Revisit when a page handles credentials.
+- CI needs no key change: `init.sh` generates one and the test helpers inject their own.
+
 ## 2026-09-29 — US-00 project setup & harness
 
 **Done**

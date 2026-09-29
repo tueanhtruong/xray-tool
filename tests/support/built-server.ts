@@ -3,6 +3,7 @@ import { once } from 'node:events'
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
+import { TEST_ENCRYPTION_KEY } from './env'
 
 export const SERVER_ENTRY = fileURLToPath(
   new URL('../../.output/server/index.mjs', import.meta.url),
@@ -17,12 +18,15 @@ export function assertBuilt(): void {
   }
 }
 
-/** Environment for the server child: the current env without any NUXT_* variables, plus `env`. */
+/**
+ * Environment for the server child: the current env without any NUXT_* variables, a test-only
+ * encryption key, plus `env` (which wins; pass '' to leave the key unset).
+ */
 export function serverEnv(env: Record<string, string | undefined>): NodeJS.ProcessEnv {
   const base = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith('NUXT_')),
   )
-  return { ...base, ...env }
+  return { ...base, NUXT_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY, ...env }
 }
 
 export async function getFreePort(): Promise<number> {
@@ -35,9 +39,28 @@ export async function getFreePort(): Promise<number> {
   return address.port
 }
 
+export type LogEntry = Record<string, unknown>
+
 export interface RunningServer {
   url: string
+  /** Every JSON log line the server has written to stdout so far. */
+  logs: () => LogEntry[]
+  /** Raw stdout and stderr, for asserting that something never appears anywhere. */
+  output: () => string
   stop: () => Promise<void>
+}
+
+function parseLogLines(stdout: string): LogEntry[] {
+  const entries: LogEntry[] = []
+  for (const line of stdout.split('\n')) {
+    if (line.trim() === '') continue
+    try {
+      entries.push(JSON.parse(line) as LogEntry)
+    } catch {
+      // Not a JSON log line (e.g. Nitro's "Listening on ..." banner).
+    }
+  }
+  return entries
 }
 
 /** Start the built server and wait until it answers `/api/health`. */
@@ -50,9 +73,11 @@ export async function startBuiltServer(
   const url = `http://127.0.0.1:${port}`
   const child = spawn(process.execPath, [SERVER_ENTRY], {
     env: serverEnv({ ...env, PORT: String(port), HOST: '127.0.0.1' }),
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
+  let stdout = ''
   let stderr = ''
+  child.stdout.on('data', (chunk) => (stdout += chunk))
   child.stderr.on('data', (chunk) => (stderr += chunk))
   let exited = false
   child.once('exit', () => (exited = true))
@@ -75,6 +100,8 @@ export async function startBuiltServer(
 
   return {
     url,
+    logs: () => parseLogLines(stdout),
+    output: () => stdout + stderr,
     stop: async () => {
       if (exited) return
       child.kill('SIGTERM')
@@ -92,9 +119,10 @@ export async function runBuiltServerUntilExit(
   const port = await getFreePort()
   const child = spawn(process.execPath, [SERVER_ENTRY], {
     env: serverEnv({ ...env, PORT: String(port), HOST: '127.0.0.1' }),
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stderr = ''
+  child.stdout.resume()
   child.stderr.on('data', (chunk) => (stderr += chunk))
   const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs)
   const [code] = (await once(child, 'exit')) as [number | null]

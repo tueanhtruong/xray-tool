@@ -54,6 +54,25 @@ if (( problems > 0 )); then
 fi
 echo "Node $(node -v), pnpm $(pnpm -v), .env present"
 
+# --- Encryption key -----------------------------------------------------------
+# NUXT_ENCRYPTION_KEY protects credentials stored in the database (docs/security.md).
+# Generate a local one when it is missing or empty; never overwrite an existing value.
+# The key is written to .env (gitignored) and is never printed.
+step "Ensuring NUXT_ENCRYPTION_KEY is set in .env"
+if grep -Eq '^NUXT_ENCRYPTION_KEY=("")?[[:space:]]*$' .env; then
+  new_key="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))")"
+  awk -v key="${new_key}" '/^NUXT_ENCRYPTION_KEY=("")?[[:space:]]*$/ { print "NUXT_ENCRYPTION_KEY=" key; next } { print }' .env > .env.tmp
+  cat .env.tmp > .env
+  rm -f .env.tmp
+  echo "Generated a new NUXT_ENCRYPTION_KEY in .env"
+elif grep -Eq '^NUXT_ENCRYPTION_KEY=' .env; then
+  echo "NUXT_ENCRYPTION_KEY already set; leaving it unchanged"
+else
+  new_key="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))")"
+  printf '\nNUXT_ENCRYPTION_KEY=%s\n' "${new_key}" >> .env
+  echo "Added NUXT_ENCRYPTION_KEY to .env"
+fi
+
 # --- Bootstrap ----------------------------------------------------------------
 step "Installing dependencies"
 pnpm install --frozen-lockfile

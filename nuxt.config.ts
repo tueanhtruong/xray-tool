@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import pkg from './package.json' with { type: 'json' }
 
 const strictCompilerOptions = {
@@ -40,7 +41,19 @@ export default defineNuxtConfig({
     nodeTsConfig: { compilerOptions: strictCompilerOptions },
   },
 
+  hooks: {
+    // Put our error handler first; Nuxt's own handler (HTML error page) stays behind it and
+    // serves every request ours does not answer (see server/error-handler.ts).
+    'nitro:config'(nitroConfig) {
+      nitroConfig.errorHandler = [
+        fileURLToPath(new URL('./server/error-handler.ts', import.meta.url)),
+        ...[nitroConfig.errorHandler ?? []].flat(),
+      ]
+    },
+  },
+
   nitro: {
+    experimental: { asyncContext: true },
     typescript: {
       tsConfig: { compilerOptions: strictCompilerOptions },
     },

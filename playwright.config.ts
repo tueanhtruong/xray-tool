@@ -1,6 +1,11 @@
 import { existsSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
-import { integrationTarget, loadEnv, mockServicesUrl } from './tests/support/env'
+import {
+  TEST_ENCRYPTION_KEY,
+  integrationTarget,
+  loadEnv,
+  mockServicesUrl,
+} from './tests/support/env'
 
 loadEnv()
 
@@ -41,6 +46,7 @@ webServers.push({
     NUXT_DATABASE_URL: process.env.NUXT_DATABASE_URL_TEST ?? '',
     NUXT_INTEGRATION_TARGET: target,
     NUXT_MOCK_SERVICES_URL: mockUrl,
+    NUXT_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
   },
   reuseExistingServer: reuse,
   timeout: 30_000,

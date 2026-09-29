@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ENCRYPTION_KEY_HELP, isValidEncryptionKey } from '../security/encryption-key'
 
 /**
  * Server runtime configuration contract. Pure: no Nuxt/Nitro imports, so it can
@@ -52,7 +53,12 @@ export const serverConfigSchema = z.object({
   atlassianClientId: optionalString,
   atlassianClientSecret: optionalString,
   atlassianRedirectUri: optionalHttpUrl('http://localhost:3000/auth/jira/callback'),
-  encryptionKey: optionalString,
+  // Optional: an unset key fails at first use. When set it must be a valid 32-byte base64 key.
+  // The error text never includes the value.
+  encryptionKey: z.preprocess(
+    unset,
+    z.string().refine(isValidEncryptionKey, { error: ENCRYPTION_KEY_HELP }).optional(),
+  ),
 })
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>
