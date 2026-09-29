@@ -134,8 +134,30 @@
         "pnpm test:int tests/integration/auth-api-token.test.ts",
         "pnpm test:e2e e2e/us-03-api-token-sign-in.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "bcaa2dfd128bca02011bef3fe4b69b62611784b7",
+        "verifiedAt": "2026-09-29T16:41:46.347Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 18066
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/jira-site-url.test.ts",
+            "durationMs": 533
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/auth-api-token.test.ts",
+            "durationMs": 2297
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-03-api-token-sign-in.spec.ts",
+            "durationMs": 4640
+          }
+        ]
+      }
     },
     {
       "id": "US-04",
