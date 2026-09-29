@@ -1,4 +1,4 @@
-// Prisma schema. Domain models arrive with later stories (US-02+).
+// Prisma schema. Jira OAuth domain models are introduced in US-02.
 // Connection URL comes from prisma.config.ts (NUXT_DATABASE_URL).
 
 generator client {
@@ -8,4 +8,65 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum AuthMethod {
+  OAUTH
+}
+
+model User {
+  id         String      @id @default(cuid())
+  accountId  String      @unique
+  name       String?
+  email      String?
+  avatarUrl  String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  workspaces Workspace[]
+}
+
+model Workspace {
+  id             String          @id @default(cuid())
+  ownerId        String
+  cloudId        String
+  siteUrl        String
+  name           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  jiraConnection JiraConnection?
+
+  @@unique([ownerId, cloudId])
+  @@index([ownerId])
+}
+
+model JiraConnection {
+  id            String     @id @default(cuid())
+  workspaceId   String     @unique
+  authMethod    AuthMethod @default(OAUTH)
+  accessToken   String
+  refreshToken  String
+  expiresAt     DateTime
+  scopes        String[]
+  invalidatedAt DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model PendingOAuthGrant {
+  id           String   @id
+  accountId    String
+  name         String?
+  email        String?
+  avatarUrl    String?
+  accessToken  String
+  refreshToken String
+  accessExpiresAt DateTime
+  scopes       String[]
+  expiresAt    DateTime
+  sites        Json
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
 }

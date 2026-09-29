@@ -53,6 +53,7 @@ export const serverConfigSchema = z.object({
   atlassianClientId: optionalString,
   atlassianClientSecret: optionalString,
   atlassianRedirectUri: optionalHttpUrl('http://localhost:3000/auth/jira/callback'),
+  sessionPassword: optionalString,
   // Optional: an unset key fails at first use. When set it must be a valid 32-byte base64 key.
   // The error text never includes the value.
   encryptionKey: z.preprocess(
@@ -89,4 +90,28 @@ export function parseServerConfig(input: unknown): ParseServerConfigResult {
   const result = serverConfigSchema.safeParse(input)
   if (result.success) return { success: true, config: result.data }
   return { success: false, message: formatConfigError(result.error) }
+}
+
+export type JiraOAuthConfig = Pick<
+  ServerConfig,
+  'atlassianClientId' | 'atlassianClientSecret' | 'atlassianRedirectUri'
+>
+
+/** Missing OAuth values are checked at sign-in time, not at server startup. */
+export function getMissingOAuthConfig(config: JiraOAuthConfig): string[] {
+  const missing: string[] = []
+  if (!config.atlassianClientId) missing.push('NUXT_ATLASSIAN_CLIENT_ID')
+  if (!config.atlassianClientSecret) missing.push('NUXT_ATLASSIAN_CLIENT_SECRET')
+  if (!config.atlassianRedirectUri) missing.push('NUXT_ATLASSIAN_REDIRECT_URI')
+  return missing
+}
+
+export function isValidSessionPassword(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 32
+}
+
+export function validateSessionPassword(value: unknown): string | undefined {
+  return isValidSessionPassword(value)
+    ? undefined
+    : 'NUXT_SESSION_PASSWORD must contain at least 32 characters. See docs/setup-atlassian-oauth.md.'
 }

@@ -2,6 +2,37 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-29 — US-02 Jira OAuth sign-in
+
+**Done**
+
+- Added sealed ID-only sessions with `nuxt-auth-utils`, signed OAuth state/pending-flow cookies,
+  login/logout, protected page/API routes, and single-/multi-site Atlassian OAuth flows.
+- Added `User`, `Workspace`, `JiraConnection`, and expiring `PendingOAuthGrant` Prisma models and
+  migrations. OAuth tokens and temporary grants are encrypted with context-bound AES-GCM.
+- Added workspace Jira client with the 60-second refresh window, per-workspace single-flight,
+  encrypted rotation persistence, and revoked-token session invalidation.
+- Added deterministic Atlassian mock scenarios, OAuth setup docs, ADR 0011, unit/integration/e2e
+  coverage, and mock route documentation.
+- `pnpm check` passes; targeted OAuth/refresh/mock integration tests and US-02 Playwright e2e pass.
+- Follow-up after first live consent: changed the token exchange to Atlassian's documented JSON
+  request format and added the required `read:me` scope/User Identity API permission guidance.
+
+**In progress**
+
+- US-02 remains `active`. The full story verification is not yet run; `pnpm verify US-02` requires
+  committed code and a clean tree.
+
+**Next**
+
+- Complete the remaining full regression run and review security behavior, then commit
+  `US-02: Jira OAuth sign-in` and run `pnpm verify US-02`.
+
+**Open questions**
+
+- Refresh single-flight is process-local per workspace. Multi-instance refresh locking is deferred
+  until deployment topology requires distributed coordination.
+
 ## 2026-09-29 — US-01 security foundation
 
 **Done**

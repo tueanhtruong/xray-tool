@@ -103,7 +103,7 @@ describe('request IDs on the built server', () => {
       { length: 12 },
       (_, i) => `concurrent-${i.toString().padStart(2, '0')}-id`,
     )
-    const paths = ids.map((_, i) => (i % 2 === 0 ? '/api/health' : '/api/does-not-exist'))
+    const paths = ids.map((_, i) => (i % 2 === 0 ? '/api/health' : '/api/auth/session'))
     await Promise.all(
       ids.map((id, i) => fetch(`${server.url}${paths[i]}`, { headers: { 'x-request-id': id } })),
     )

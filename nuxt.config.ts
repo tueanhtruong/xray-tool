@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-09-29',
   devtools: { enabled: true },
 
-  modules: ['@nuxt/ui', '@nuxt/eslint'],
+  modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-auth-utils'],
 
   css: ['~/assets/css/main.css'],
 
@@ -29,6 +29,15 @@ export default defineNuxtConfig({
     atlassianClientSecret: '',
     atlassianRedirectUri: '',
     encryptionKey: '',
+    session: {
+      password: '',
+      maxAge: 60 * 60 * 24 * 7,
+      cookie: {
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+      },
+    },
     public: {
       appVersion: pkg.version,
     },

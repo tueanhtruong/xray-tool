@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
 import {
   TEST_ENCRYPTION_KEY,
+  TEST_SESSION_PASSWORD,
   integrationTarget,
   loadEnv,
   mockServicesUrl,
@@ -47,6 +48,10 @@ webServers.push({
     NUXT_INTEGRATION_TARGET: target,
     NUXT_MOCK_SERVICES_URL: mockUrl,
     NUXT_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+    NUXT_SESSION_PASSWORD: TEST_SESSION_PASSWORD,
+    NUXT_ATLASSIAN_CLIENT_ID: 'mock-test-client-id',
+    NUXT_ATLASSIAN_CLIENT_SECRET: 'mock-test-client-secret',
+    NUXT_ATLASSIAN_REDIRECT_URI: `http://127.0.0.1:${port}/auth/jira/callback`,
   },
   reuseExistingServer: reuse,
   timeout: 30_000,

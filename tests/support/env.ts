@@ -18,3 +18,6 @@ export function mockServicesUrl(): string {
  * built-server tests do not depend on the developer's `.env`. Never use it outside tests.
  */
 export const TEST_ENCRYPTION_KEY = Buffer.alloc(32, 'test-only-key').toString('base64')
+
+/** Fixed sealed-session password for tests only. Never use this value outside tests. */
+export const TEST_SESSION_PASSWORD = 'test-only-session-password-at-least-32-chars'

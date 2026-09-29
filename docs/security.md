@@ -14,6 +14,16 @@
   [Secret encryption](#secret-encryption)) and never returned after they are saved.
 - CI uses the mock target and needs **no** Atlassian or Xray secrets.
 
+## Session cookies
+
+- US-02 uses `nuxt-auth-utils` sealed sessions. Configure `NUXT_SESSION_PASSWORD` with at least
+  32 random characters (`openssl rand -base64 32`) and keep it private in `.env` or deployment
+  secrets. Every application instance must use the same value while sessions need to remain valid.
+- The application does not use a built-in or public fallback password. The server can start without
+  it, but sign-in/session issuance fails with an actionable message until configured.
+- The sealed, httpOnly, `SameSite=Lax` cookie contains only the user ID and active workspace ID;
+  tokens are kept in encrypted database fields. Cookies are `Secure` in production.
+
 ## Live testing: sandbox only
 
 - `live` target development and `pnpm test:live` may only touch a **dedicated sandbox** Jira/Xray

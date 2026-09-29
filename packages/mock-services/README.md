@@ -22,15 +22,18 @@ is listening yet, and stop only an instance they started.
 
 ## Routes
 
-| Route           | Status                                               |
-| --------------- | ---------------------------------------------------- |
-| `GET /health`   | `200 { "status": "ok", "service": "mock-services" }` |
-| everything else | `404`                                                |
+| Route                 | Status                                                       |
+| --------------------- | ------------------------------------------------------------ |
+| `GET /health`         | `200 { "status": "ok", "service": "mock-services" }`         |
+| `/atlassian-auth/*`   | authorize and token/refresh mock routes                      |
+| `/atlassian-api/*`    | accessible resources, `/me`, and Jira identity route         |
+| `GET/POST /__control` | select deterministic test scenario and inspect refresh count |
+| unknown routes        | `404`                                                        |
 
 ### Reserved prefixes
 
 The app derives its base URLs from these prefixes when the target is `mock`
-(see `server/utils/integration-urls.ts`). They are implemented by later stories.
+(see `server/utils/integration-urls.ts`).
 
 | Prefix            | Emulates                                 | First story  |
 | ----------------- | ---------------------------------------- | ------------ |
@@ -39,3 +42,18 @@ The app derives its base URLs from these prefixes when the target is `mock`
 | `/xray`           | `https://xray.cloud.getxray.app` (Xray)  | US-04        |
 
 Mock fixtures copied from live responses must be sanitized first (see `docs/testing.md`).
+
+### OAuth scenarios
+
+Mock OAuth defaults to one accessible site. Tests can select `single`, `multi`, `denied`,
+`invalid-code`, `expired`, or `revoked` behavior without real Atlassian credentials. Refresh tokens
+are one-time-use and are rotated after a successful refresh:
+
+```sh
+curl -X POST http://localhost:4010/__control \
+  -H 'content-type: application/json' -d '{"mode":"multi","resetRefreshCount":true}'
+curl http://localhost:4010/__control
+```
+
+The control route is intended for local/test mock use only. Test identities, sites, and tokens are
+obviously fake.

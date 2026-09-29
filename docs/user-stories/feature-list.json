@@ -97,7 +97,7 @@
         "pnpm test:int tests/integration/auth-oauth.test.ts",
         "pnpm test:e2e e2e/us-02-oauth-sign-in.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {

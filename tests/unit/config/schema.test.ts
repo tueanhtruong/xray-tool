@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { parseServerConfig, serverConfigSchema, toEnvName } from '~~/shared/config/schema'
+import {
+  getMissingOAuthConfig,
+  isValidSessionPassword,
+  parseServerConfig,
+  serverConfigSchema,
+  toEnvName,
+} from '~~/shared/config/schema'
 
 const DB = 'postgresql://xray:xray@localhost:5432/xray_dev'
 
@@ -16,6 +22,7 @@ function runtimeConfig(overrides: Record<string, unknown> = {}) {
     atlassianClientSecret: '',
     atlassianRedirectUri: '',
     encryptionKey: '',
+    sessionPassword: '',
     public: { appVersion: '0.0.0' },
     ...overrides,
   }
@@ -124,5 +131,51 @@ describe('encryption key', () => {
     expect(result.message).toContain('32-byte')
     expect(result.message).toContain('openssl rand -base64 32')
     expect(result.message).not.toContain(key)
+  })
+})
+
+describe('OAuth runtime configuration', () => {
+  it('allows OAuth configuration to remain unset at startup', () => {
+    expect(parseServerConfig(runtimeConfig({ databaseUrl: DB })).success).toBe(true)
+    expect(
+      getMissingOAuthConfig({
+        atlassianClientId: undefined,
+        atlassianClientSecret: undefined,
+        atlassianRedirectUri: undefined,
+      }),
+    ).toEqual([
+      'NUXT_ATLASSIAN_CLIENT_ID',
+      'NUXT_ATLASSIAN_CLIENT_SECRET',
+      'NUXT_ATLASSIAN_REDIRECT_URI',
+    ])
+  })
+
+  it('lists only missing OAuth settings without returning any supplied values', () => {
+    expect(
+      getMissingOAuthConfig({
+        atlassianClientId: 'client-id-value',
+        atlassianClientSecret: undefined,
+        atlassianRedirectUri: 'http://localhost:3000/auth/jira/callback',
+      }),
+    ).toEqual(['NUXT_ATLASSIAN_CLIENT_SECRET'])
+  })
+})
+
+describe('session password', () => {
+  it('is not required for startup runtime config', () => {
+    expect(parseServerConfig(runtimeConfig({ databaseUrl: DB })).success).toBe(true)
+  })
+
+  it('validates a minimum length when supplied', () => {
+    expect(isValidSessionPassword('a'.repeat(32))).toBe(true)
+    expect(isValidSessionPassword('a'.repeat(31))).toBe(false)
+    expect(isValidSessionPassword(undefined)).toBe(false)
+  })
+
+  it('provides an actionable validation message without including the supplied value', async () => {
+    const { validateSessionPassword } = await import('~~/shared/config/schema')
+    const message = validateSessionPassword('short-secret')
+    expect(message).toContain('NUXT_SESSION_PASSWORD')
+    expect(message).not.toContain('short-secret')
   })
 })

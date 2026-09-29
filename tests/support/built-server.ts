@@ -3,7 +3,7 @@ import { once } from 'node:events'
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
-import { TEST_ENCRYPTION_KEY } from './env'
+import { TEST_ENCRYPTION_KEY, TEST_SESSION_PASSWORD } from './env'
 
 export const SERVER_ENTRY = fileURLToPath(
   new URL('../../.output/server/index.mjs', import.meta.url),
@@ -26,7 +26,12 @@ export function serverEnv(env: Record<string, string | undefined>): NodeJS.Proce
   const base = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith('NUXT_')),
   )
-  return { ...base, NUXT_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY, ...env }
+  return {
+    ...base,
+    NUXT_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+    NUXT_SESSION_PASSWORD: TEST_SESSION_PASSWORD,
+    ...env,
+  }
 }
 
 export async function getFreePort(): Promise<number> {
@@ -71,8 +76,14 @@ export async function startBuiltServer(
   assertBuilt()
   const port = await getFreePort()
   const url = `http://127.0.0.1:${port}`
+  const resolvedEnv = Object.fromEntries(
+    Object.entries(env).map(([key, value]) => [
+      key,
+      key === 'NUXT_ATLASSIAN_REDIRECT_URI' ? value?.replace('__SERVER_URL__', url) : value,
+    ]),
+  )
   const child = spawn(process.execPath, [SERVER_ENTRY], {
-    env: serverEnv({ ...env, PORT: String(port), HOST: '127.0.0.1' }),
+    env: serverEnv({ ...resolvedEnv, PORT: String(port), HOST: '127.0.0.1' }),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stdout = ''

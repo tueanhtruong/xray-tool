@@ -19,7 +19,7 @@ OAuth 2.0 (3LO) is the primary auth method. This story introduces the first doma
 **In**
 
 - Prisma models: `User` (Atlassian `accountId`, name, email, avatar), `Workspace` (owner, Jira `cloudId`, site URL, name), `JiraConnection` (workspace, `authMethod = OAUTH`, encrypted access + refresh tokens, `expiresAt`, scopes).
-- `GET /auth/jira/login` → redirect to `https://auth.atlassian.com/authorize` with `audience=api.atlassian.com`, `client_id`, `scope` (`read:jira-work write:jira-work read:jira-user offline_access`), `redirect_uri`, `response_type=code`, `prompt=consent`, and a random `state` stored in a signed, httpOnly, short-lived cookie.
+- `GET /auth/jira/login` → redirect to `https://auth.atlassian.com/authorize` with `audience=api.atlassian.com`, `client_id`, `scope` (`read:jira-work write:jira-work read:jira-user read:me offline_access`), `redirect_uri`, `response_type=code`, `prompt=consent`, and a random `state` stored in a signed, httpOnly, short-lived cookie.
 - `GET /auth/jira/callback` → validate `state`, exchange code at `https://auth.atlassian.com/oauth/token`, call `accessible-resources` to get sites, call `/me` for the profile, upsert User/Workspace/JiraConnection with tokens encrypted via US-01.
 - Multiple accessible sites → site picker page; single site → auto-select.
 - Session: sealed httpOnly cookie (`Secure`, `SameSite=Lax`), containing user ID and active workspace ID only — never tokens.
@@ -91,5 +91,5 @@ Feature: Jira OAuth sign-in
 
 ## Story-specific done checks
 
-- [ ] `docs/setup-atlassian-oauth.md` explains creating the Atlassian developer app and required scopes
-- [ ] Integration test proves concurrent calls trigger exactly one refresh
+- [x] `docs/setup-atlassian-oauth.md` explains creating the Atlassian developer app and required scopes
+- [x] Integration test proves concurrent calls trigger exactly one refresh

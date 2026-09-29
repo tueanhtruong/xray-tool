@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-test('home page renders the app name', async ({ page }) => {
+test('signed-out users are redirected to the login page', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('app-name')).toHaveText('Xray Tool')
-  await expect(page).toHaveTitle(/Xray Tool/)
+  await expect(page).toHaveURL('/login')
+  await expect(page.getByTestId('jira-login')).toHaveText('Sign in with Atlassian')
+  await expect(page).toHaveTitle(/Sign in · Xray Tool/)
 })
 
 test('GET /api/health returns status ok', async ({ request }) => {
