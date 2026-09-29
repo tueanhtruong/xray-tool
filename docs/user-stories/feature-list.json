@@ -19,8 +19,34 @@
         "pnpm test:int tests/integration/health.test.ts tests/integration/config-fail-fast.test.ts tests/integration/mock-services.test.ts",
         "pnpm test:e2e e2e/us-00-smoke.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "b42bbafe325c03bbc98850547af5380fd793f267",
+        "verifiedAt": "2026-09-29T07:02:07.859Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 14068
+          },
+          {
+            "cmd": "./scripts/init.sh",
+            "durationMs": 3184
+          },
+          {
+            "cmd": "./scripts/init.sh",
+            "durationMs": 3058
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/health.test.ts tests/integration/config-fail-fast.test.ts tests/integration/mock-services.test.ts",
+            "durationMs": 2408
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-00-smoke.spec.ts",
+            "durationMs": 2388
+          }
+        ]
+      }
     },
     {
       "id": "US-01",

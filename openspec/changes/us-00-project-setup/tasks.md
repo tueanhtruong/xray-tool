@@ -101,4 +101,4 @@
 - [x] 15.1 Check `AGENTS.md` ≤ 60 lines and that every topic doc link resolves
 - [x] 15.2 Run the session exit checklist (no stray logs or temp files, progress entry written)
 - [x] 15.3 Commit `US-00: project setup and harness`
-- [ ] 15.4 Run `pnpm verify US-00`; on success commit `US-00: mark passing`
+- [x] 15.4 Run `pnpm verify US-00`; on success commit `US-00: mark passing`
