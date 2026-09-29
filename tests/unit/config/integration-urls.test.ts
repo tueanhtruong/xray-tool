@@ -24,6 +24,7 @@ describe('resolveIntegrationUrls', () => {
       atlassianAuthUrl: 'http://localhost:4010/atlassian-auth',
       atlassianApiUrl: 'http://localhost:4010/atlassian-api',
       xrayBaseUrl: 'http://localhost:4010/xray',
+      mockJiraSiteUrl: 'http://localhost:4010/jira-site',
     })
   })
 

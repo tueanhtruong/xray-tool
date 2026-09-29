@@ -10,11 +10,16 @@ export interface IntegrationUrls {
   atlassianAuthUrl: string
   atlassianApiUrl: string
   xrayBaseUrl: string
+  mockJiraSiteUrl?: string
 }
 
 type UrlConfig = Pick<
   ServerConfig,
-  'integrationTarget' | 'mockServicesUrl' | 'atlassianAuthUrl' | 'atlassianApiUrl' | 'xrayBaseUrl'
+  | 'integrationTarget'
+  | 'mockServicesUrl'
+  | 'atlassianAuthUrl'
+  | 'atlassianApiUrl'
+  | 'xrayBaseUrl'
 >
 
 /**
@@ -30,6 +35,7 @@ export function resolveIntegrationUrls(config: UrlConfig): IntegrationUrls {
           atlassianAuthUrl: `${mock}/atlassian-auth`,
           atlassianApiUrl: `${mock}/atlassian-api`,
           xrayBaseUrl: `${mock}/xray`,
+          mockJiraSiteUrl: `${mock}/jira-site`,
         }
       : { ...LIVE_INTEGRATION_URLS }
 
@@ -37,5 +43,6 @@ export function resolveIntegrationUrls(config: UrlConfig): IntegrationUrls {
     atlassianAuthUrl: config.atlassianAuthUrl ?? derived.atlassianAuthUrl,
     atlassianApiUrl: config.atlassianApiUrl ?? derived.atlassianApiUrl,
     xrayBaseUrl: config.xrayBaseUrl ?? derived.xrayBaseUrl,
+    mockJiraSiteUrl: derived.mockJiraSiteUrl,
   }
 }

@@ -134,7 +134,7 @@
         "pnpm test:int tests/integration/auth-api-token.test.ts",
         "pnpm test:e2e e2e/us-03-api-token-sign-in.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {

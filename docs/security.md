@@ -12,6 +12,12 @@
     rotate it.
 - User-entered Atlassian/Xray credentials are stored encrypted at rest (AES-256-GCM, see
   [Secret encryption](#secret-encryption)) and never returned after they are saved.
+- Jira API-token sites are restricted to HTTPS hosts under `atlassian.net` by default. Additional
+  DNS suffixes (`NUXT_JIRA_SITE_URL_SUFFIXES`) authorize outbound Basic-auth requests and must only
+  name domains controlled by the deployment. Site validation happens before requests and redirects
+  are rejected for Basic-auth calls. See [Jira API-token setup](setup-jira-api-token.md).
+- API-token sign-in attempts are counted in Postgres by a hash of the client IP. Forwarded IP headers
+  are used only when the direct peer is explicitly listed in `NUXT_TRUSTED_PROXY_IPS`.
 - CI uses the mock target and needs **no** Atlassian or Xray secrets.
 
 ## Session cookies

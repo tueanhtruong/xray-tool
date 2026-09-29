@@ -17,6 +17,7 @@ import {
 export function createMockApp() {
   let mode = 'single'
   let refreshCount = 0
+  let apiTokenMyselfCount = 0
   const router = createRouter()
     .get(
       '/health',
@@ -25,15 +26,20 @@ export function createMockApp() {
     .post(
       '/__control',
       defineEventHandler(async (event) => {
-        const body = (await readBody(event)) as { mode?: unknown; resetRefreshCount?: unknown }
+        const body = (await readBody(event)) as {
+          mode?: unknown
+          resetRefreshCount?: unknown
+          resetApiTokenMyselfCount?: unknown
+        }
         if (typeof body.mode === 'string') mode = body.mode
         if (body.resetRefreshCount === true) refreshCount = 0
-        return { mode, refreshCount }
+        if (body.resetApiTokenMyselfCount === true) apiTokenMyselfCount = 0
+        return { mode, refreshCount, apiTokenMyselfCount }
       }),
     )
     .get(
       '/__control',
-      defineEventHandler(() => ({ mode, refreshCount })),
+      defineEventHandler(() => ({ mode, refreshCount, apiTokenMyselfCount })),
     )
     .get(
       '/atlassian-auth/authorize',
@@ -130,6 +136,24 @@ export function createMockApp() {
         cloudId: event.context.params?.cloudId,
         displayName: 'Example QA',
       })),
+    )
+    .get(
+      '/jira-site/rest/api/3/myself',
+      defineEventHandler((event) => {
+        apiTokenMyselfCount += 1
+        const authorization = event.node.req.headers.authorization
+        const expected = `Basic ${Buffer.from('qa@example.com:mock-valid-api-token').toString('base64')}`
+        if (authorization !== expected) {
+          setResponseStatus(event, 401)
+          return { errorMessages: ['Unauthorized'] }
+        }
+        return {
+          accountId: 'fake-atlassian-account',
+          displayName: 'Example QA',
+          emailAddress: 'qa@example.com',
+          self: 'https://one.atlassian.net/rest/api/3/user?accountId=fake-atlassian-account',
+        }
+      }),
     )
   const app = createApp()
   app.use(router)

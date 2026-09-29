@@ -23,6 +23,16 @@ const httpUrl = (example: string) =>
 
 const optionalHttpUrl = (example: string) => z.preprocess(unset, httpUrl(example).optional())
 const optionalString = z.preprocess(unset, z.string().optional())
+const csv = (item: z.ZodType<string, string>) =>
+  z.preprocess(
+    unset,
+    z
+      .string()
+      .transform((value) => value.split(',').map((entry) => entry.trim()).filter(Boolean))
+      .pipe(z.array(z.string().pipe(item)))
+      .optional()
+      .default([]),
+  )
 
 export const serverConfigSchema = z.object({
   databaseUrl: z.preprocess(
@@ -53,6 +63,13 @@ export const serverConfigSchema = z.object({
   atlassianClientId: optionalString,
   atlassianClientSecret: optionalString,
   atlassianRedirectUri: optionalHttpUrl('http://localhost:3000/auth/jira/callback'),
+  jiraSiteUrlSuffixes: csv(
+    z
+      .string()
+      .regex(/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i)
+      .transform((value) => value.toLowerCase()),
+  ),
+  trustedProxyIps: csv(z.union([z.ipv4(), z.ipv6()])),
   sessionPassword: optionalString,
   // Optional: an unset key fails at first use. When set it must be a valid 32-byte base64 key.
   // The error text never includes the value.

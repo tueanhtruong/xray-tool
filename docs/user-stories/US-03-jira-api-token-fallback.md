@@ -6,6 +6,9 @@
 | Depends on | US-02                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
+API-token connection details and deployment configuration are documented in
+[setup-jira-api-token.md](../setup-jira-api-token.md).
+
 ## User story
 
 As a QA engineer whose organization blocks third-party OAuth apps, I want to connect with my Jira email and API token, so that I can still use the tool.
@@ -19,7 +22,7 @@ Reuses `User`, `Workspace`, `JiraConnection` and the session from US-02. The Jir
 **In**
 
 - `/login` offers "Use API token instead" → form: Jira site URL, email, API token.
-- Site URL validation (SSRF guard): `https` only, hostname must end with `.atlassian.net` (allow-list extendable via config), no credentials/port/path.
+- Site URL validation (SSRF guard): `https` only, hostname must end with `.atlassian.net` (allow-list extendable via config), no credentials or port; accept the site origin or exact `/rest/api/3` base path and normalize to the origin.
 - Validation call: `GET {site}/rest/api/3/myself` with Basic auth; on success upsert User (by `accountId`), Workspace (by site), `JiraConnection` with `authMethod = API_TOKEN`, email, encrypted token.
 - Jira client for `API_TOKEN` uses `{site}/rest/api/3` with Basic auth; same interface as OAuth client.
 - Settings page shows connection method, email, and "token saved on <date>" — never the token. Actions: replace token, disconnect.
@@ -80,4 +83,4 @@ Feature: Jira API token fallback
 
 ## Story-specific done checks
 
-- [ ] Contract test runs the same Jira client test-suite against both auth methods
+- [x] Contract test runs the same Jira client test-suite against both auth methods

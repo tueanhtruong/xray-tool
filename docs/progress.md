@@ -2,6 +2,36 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-29 — US-03 Jira API-token fallback
+
+**Done**
+
+- Added API-token sign-in with strict site URL validation, encrypted connection credentials, and the
+  existing ID-only session. The workspace Jira client dispatches OAuth/API-token auth while keeping
+  OAuth refresh behavior intact.
+- Added settings metadata, token replacement, disconnect, Postgres-backed per-IP rate limiting, and
+  trusted-proxy/site-suffix configuration.
+- Added deterministic API-token mock behavior, unit/integration/Playwright coverage, setup guide,
+  and ADR 0012.
+- `pnpm check`, targeted API-token integration tests, and US-03 Playwright e2e pass.
+- OAuth integration/refresh regression tests (18) and OAuth Playwright tests (6) pass with the
+  generalized connection model and shared Jira client.
+
+**In progress**
+
+- US-03 is `active`; the story verification has not been run. `pnpm verify US-03` requires committed
+  code and a clean tree.
+
+**Next**
+
+- Review the OAuth/API-token shared-client contract and run the story verification after committing
+  `US-03: Jira API-token fallback`.
+
+**Open questions**
+
+- None blocking the story. Additional Jira domain suffixes and proxy IPs require deliberate runtime
+  configuration; the default is `atlassian.net` and no trusted proxies.
+
 ## 2026-09-29 — US-02 Jira OAuth sign-in
 
 **Done**

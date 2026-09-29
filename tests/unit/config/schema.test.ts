@@ -21,6 +21,8 @@ function runtimeConfig(overrides: Record<string, unknown> = {}) {
     atlassianClientId: '',
     atlassianClientSecret: '',
     atlassianRedirectUri: '',
+    jiraSiteUrlSuffixes: '',
+    trustedProxyIps: '',
     encryptionKey: '',
     sessionPassword: '',
     public: { appVersion: '0.0.0' },
@@ -40,6 +42,8 @@ describe('serverConfigSchema', () => {
     })
     expect(result.config.xrayBaseUrl).toBeUndefined()
     expect(result.config.atlassianClientSecret).toBeUndefined()
+    expect(result.config.jiraSiteUrlSuffixes).toEqual([])
+    expect(result.config.trustedProxyIps).toEqual([])
   })
 
   it('accepts a config with keys absent entirely', () => {
@@ -177,5 +181,35 @@ describe('session password', () => {
     const message = validateSessionPassword('short-secret')
     expect(message).toContain('NUXT_SESSION_PASSWORD')
     expect(message).not.toContain('short-secret')
+  })
+})
+
+describe('Jira API-token networking configuration', () => {
+  it('parses configured site suffixes and trusted proxy IPs', () => {
+    const result = parseServerConfig(
+      runtimeConfig({
+        databaseUrl: DB,
+        jiraSiteUrlSuffixes: 'example.org, corp.example.com',
+        trustedProxyIps: '127.0.0.1,2001:db8::1',
+      }),
+    )
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.config.jiraSiteUrlSuffixes).toEqual(['example.org', 'corp.example.com'])
+      expect(result.config.trustedProxyIps).toEqual(['127.0.0.1', '2001:db8::1'])
+    }
+  })
+
+  it('rejects URL-like site suffixes and invalid proxy addresses without echoing config', () => {
+    const secretValue = 'https://attacker.example/path'
+    const result = parseServerConfig(
+      runtimeConfig({
+        databaseUrl: DB,
+        jiraSiteUrlSuffixes: secretValue,
+        trustedProxyIps: 'not-an-ip',
+      }),
+    )
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.message).not.toContain(secretValue)
   })
 })

@@ -28,6 +28,8 @@ export default defineNuxtConfig({
     atlassianClientId: '',
     atlassianClientSecret: '',
     atlassianRedirectUri: '',
+    jiraSiteUrlSuffixes: '',
+    trustedProxyIps: '',
     encryptionKey: '',
     session: {
       password: '',

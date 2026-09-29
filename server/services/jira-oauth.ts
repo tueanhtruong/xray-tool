@@ -55,11 +55,34 @@ async function upsertConnection(
   site: JiraSite,
   tokens: OAuthTokens,
 ) {
-  const workspace = await tx.workspace.upsert({
-    where: { ownerId_cloudId: { ownerId, cloudId: site.id } },
-    create: { ownerId, cloudId: site.id, siteUrl: site.url, name: site.name },
-    update: { siteUrl: site.url, name: site.name },
+  const siteOrigin = new URL(site.url).origin.toLowerCase()
+  const existingByOrigin = await tx.workspace.findUnique({
+    where: { ownerId_siteOrigin: { ownerId, siteOrigin } },
+    include: { jiraConnection: true },
   })
+  if (existingByOrigin?.jiraConnection?.authMethod === 'API_TOKEN') {
+    throw new Error('Disconnect the API-token connection before connecting this Jira site with OAuth.')
+  }
+  const workspace = existingByOrigin && !existingByOrigin.jiraConnection
+    ? await tx.workspace.update({
+        where: { id: existingByOrigin.id },
+        data: { cloudId: site.id, siteUrl: site.url, name: site.name },
+      })
+    : await tx.workspace.upsert({
+        where: { ownerId_cloudId: { ownerId, cloudId: site.id } },
+        create: {
+          ownerId,
+          cloudId: site.id,
+          siteOrigin,
+          siteUrl: site.url,
+          name: site.name,
+        },
+        update: {
+          siteOrigin,
+          siteUrl: site.url,
+          name: site.name,
+        },
+      })
   const connectionData = {
     accessToken: encryptSecret(tokens.accessToken, {
       context: `${ACCESS_CONTEXT}:${workspace.id}`,

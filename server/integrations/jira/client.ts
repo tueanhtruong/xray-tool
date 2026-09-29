@@ -4,9 +4,11 @@ import { refreshOAuthToken, AtlassianOAuthError } from './oauth'
 import { getOAuthConfig } from '../../utils/oauth-config'
 import { resolveIntegrationUrls } from '../../utils/integration-urls'
 import { clearAppSession } from '../../utils/session'
+import { hasValidJiraCredentialShape } from '#shared/auth/jira-credential-shape'
 
 const ACCESS_CONTEXT = 'JiraConnection:accessToken'
 const REFRESH_CONTEXT = 'JiraConnection:refreshToken'
+const API_TOKEN_CONTEXT = 'JiraConnection:apiToken'
 
 const refreshes = new Map<string, Promise<string>>()
 
@@ -22,7 +24,10 @@ async function refreshForWorkspace(workspaceId: string): Promise<string> {
   const token = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "JiraConnection" WHERE "workspaceId" = ${workspaceId} FOR UPDATE`
     const connection = await tx.jiraConnection.findUnique({ where: { workspaceId } })
-    if (!connection || connection.invalidatedAt) return null
+    if (
+      !connection || connection.invalidatedAt || !connection.accessToken ||
+      !connection.refreshToken || !connection.expiresAt
+    ) return null
     if (!isTokenExpiring(connection.expiresAt)) {
       return decryptSecret(connection.accessToken, {
         context: `${ACCESS_CONTEXT}:${workspaceId}`,
@@ -62,6 +67,12 @@ async function refreshForWorkspace(workspaceId: string): Promise<string> {
 async function accessToken(workspaceId: string): Promise<string> {
   const connection = await usePrisma().jiraConnection.findUnique({ where: { workspaceId } })
   if (!connection || connection.invalidatedAt) throw new JiraReauthenticationRequired()
+  if (
+    connection.authMethod !== 'OAUTH' ||
+    !connection.accessToken ||
+    !connection.refreshToken ||
+    !connection.expiresAt
+  ) throw new JiraReauthenticationRequired()
   if (!isTokenExpiring(connection.expiresAt)) {
     return decryptSecret(connection.accessToken, { context: `${ACCESS_CONTEXT}:${workspaceId}` })
   }
@@ -73,7 +84,10 @@ async function accessToken(workspaceId: string): Promise<string> {
         // A concurrent waiter may have observed the old expiry before another worker completed.
         // Re-read after a losing refresh transaction; use the newly persisted access token.
         const latest = await usePrisma().jiraConnection.findUnique({ where: { workspaceId } })
-        if (latest && !latest.invalidatedAt && !isTokenExpiring(latest.expiresAt)) {
+        if (
+          latest && !latest.invalidatedAt && latest.accessToken && latest.expiresAt &&
+          !isTokenExpiring(latest.expiresAt)
+        ) {
           return decryptSecret(latest.accessToken, { context: `${ACCESS_CONTEXT}:${workspaceId}` })
         }
         throw error
@@ -94,20 +108,57 @@ export function getWorkspaceJiraClient(workspaceId: string, event?: H3Event): Wo
       try {
         const workspace = await usePrisma().workspace.findUnique({
           where: { id: workspaceId },
-          select: { cloudId: true },
+          include: { jiraConnection: true },
         })
-        if (!workspace) throw new JiraReauthenticationRequired()
-        const token = await accessToken(workspaceId)
-        const config = getOAuthConfig()
-        const baseUrl = resolveIntegrationUrls(config).atlassianApiUrl.replace(/\/+$/, '')
-        const url = new URL(
-          `${baseUrl}/ex/jira/${encodeURIComponent(workspace.cloudId)}${path.startsWith('/') ? path : `/${path}`}`,
-        )
+        const connection = workspace?.jiraConnection
+        if (!workspace || !connection || connection.invalidatedAt) {
+          throw new JiraReauthenticationRequired()
+        }
+        if (!hasValidJiraCredentialShape(workspace, connection)) {
+          throw new JiraReauthenticationRequired()
+        }
+        const pathOnly = path.split(/[?#]/, 1)[0] ?? ''
+        if (
+          path.startsWith('//') ||
+          /^[a-z][a-z\d+.-]*:/i.test(path) ||
+          path.includes('\\') ||
+          pathOnly.split('/').some((part) => part === '.' || part === '..')
+        ) {
+          throw httpError(400, 'Jira client paths must be relative.')
+        }
+        let url: URL
+        let authorization: string
+        if (connection.authMethod === 'API_TOKEN') {
+          if (!connection.apiToken || !connection.apiEmail) {
+            throw new JiraReauthenticationRequired()
+          }
+          const apiPath = path.replace(/^\/rest\/api\/3(?=\/|$)/, '').replace(/^\/+/, '')
+          const config = getOAuthConfig()
+          const mockOrigin = resolveIntegrationUrls(config).mockJiraSiteUrl
+          const siteOrigin = mockOrigin ?? workspace.siteOrigin
+          url = new URL(`${siteOrigin.replace(/\/+$/, '')}/rest/api/3/${apiPath}`)
+          const token = decryptSecret(connection.apiToken, {
+            context: `${API_TOKEN_CONTEXT}:${workspaceId}`,
+          })
+          authorization = `Basic ${Buffer.from(`${connection.apiEmail}:${token}`).toString('base64')}`
+        } else {
+          if (!workspace.cloudId) throw new JiraReauthenticationRequired()
+          const token = await accessToken(workspaceId)
+          const config = getOAuthConfig()
+          const baseUrl = resolveIntegrationUrls(config).atlassianApiUrl.replace(/\/+$/, '')
+          url = new URL(
+            `${baseUrl}/ex/jira/${encodeURIComponent(workspace.cloudId)}${path.startsWith('/') ? path : `/${path}`}`,
+          )
+          authorization = `Bearer ${token}`
+        }
         return await fetch(url, {
           ...init,
+          redirect: connection.authMethod === 'API_TOKEN' ? 'manual' : init.redirect,
           headers: {
-            ...Object.fromEntries(new Headers(init.headers)),
-            authorization: `Bearer ${token}`,
+            ...Object.fromEntries(
+              [...new Headers(init.headers)].filter(([key]) => key.toLowerCase() !== 'authorization'),
+            ),
+            authorization,
           },
           signal: init.signal ?? AbortSignal.timeout(10_000),
         })

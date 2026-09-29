@@ -67,10 +67,16 @@ place: `resolveIntegrationUrls()` in `server/utils/integration-urls.ts`.
 | Atlassian auth       | `https://auth.atlassian.com`     | `${NUXT_MOCK_SERVICES_URL}/atlassian-auth` |
 | Atlassian API (Jira) | `https://api.atlassian.com`      | `${NUXT_MOCK_SERVICES_URL}/atlassian-api`  |
 | Xray                 | `https://xray.cloud.getxray.app` | `${NUXT_MOCK_SERVICES_URL}/xray`           |
+| Direct Jira site     | user-configured validated HTTPS site | `${NUXT_MOCK_SERVICES_URL}/jira-site` for mock target |
 
 Each URL can be overridden individually (`NUXT_ATLASSIAN_AUTH_URL`, `NUXT_ATLASSIAN_API_URL`,
 `NUXT_XRAY_BASE_URL`), and an override always wins. Integration clients receive resolved URLs and
 **never branch on the target**.
+
+For Jira API-token sign-in, site URLs are validated by the pure helper in `shared/jira/site-url.ts`
+against the built-in `atlassian.net` suffix and optional `NUXT_JIRA_SITE_URL_SUFFIXES`. The Jira
+workspace client retains the same `fetch` interface and selects cloud-ID/Bearer OAuth or
+site-origin/Basic API-token behavior using the stored connection method.
 
 ## Mock services (`packages/mock-services`)
 

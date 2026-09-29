@@ -12,6 +12,7 @@ datasource db {
 
 enum AuthMethod {
   OAUTH
+  API_TOKEN
 }
 
 model User {
@@ -28,7 +29,8 @@ model User {
 model Workspace {
   id             String          @id @default(cuid())
   ownerId        String
-  cloudId        String
+  cloudId        String?
+  siteOrigin     String
   siteUrl        String
   name           String
   createdAt      DateTime        @default(now())
@@ -37,6 +39,7 @@ model Workspace {
   jiraConnection JiraConnection?
 
   @@unique([ownerId, cloudId])
+  @@unique([ownerId, siteOrigin])
   @@index([ownerId])
 }
 
@@ -44,10 +47,13 @@ model JiraConnection {
   id            String     @id @default(cuid())
   workspaceId   String     @unique
   authMethod    AuthMethod @default(OAUTH)
-  accessToken   String
-  refreshToken  String
-  expiresAt     DateTime
-  scopes        String[]
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  scopes        String[]   @default([])
+  apiToken      String?
+  apiEmail      String?
+  tokenSavedAt  DateTime?
   invalidatedAt DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -69,4 +75,12 @@ model PendingOAuthGrant {
   createdAt    DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+model ApiTokenSignInAttempt {
+  id        String   @id
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
 }

@@ -26,8 +26,9 @@ is listening yet, and stop only an instance they started.
 | --------------------- | ------------------------------------------------------------ |
 | `GET /health`         | `200 { "status": "ok", "service": "mock-services" }`         |
 | `/atlassian-auth/*`   | authorize and token/refresh mock routes                      |
-| `/atlassian-api/*`    | accessible resources, `/me`, and Jira identity route         |
-| `GET/POST /__control` | select deterministic test scenario and inspect refresh count |
+| `/atlassian-api/*`    | accessible resources, `/me`, and OAuth Jira identity route  |
+| `/jira-site/*`        | direct Jira API-token `/rest/api/3/myself` route              |
+| `GET/POST /__control` | select deterministic scenario and inspect request counts     |
 | unknown routes        | `404`                                                        |
 
 ### Reserved prefixes
@@ -39,6 +40,7 @@ The app derives its base URLs from these prefixes when the target is `mock`
 | ----------------- | ---------------------------------------- | ------------ |
 | `/atlassian-auth` | `https://auth.atlassian.com` (OAuth 2.0) | US-02        |
 | `/atlassian-api`  | `https://api.atlassian.com` (Jira REST)  | US-02, US-03 |
+| `/jira-site`      | direct Jira Cloud site REST API-token requests | US-03 |
 | `/xray`           | `https://xray.cloud.getxray.app` (Xray)  | US-04        |
 
 Mock fixtures copied from live responses must be sanitized first (see `docs/testing.md`).
@@ -57,3 +59,10 @@ curl http://localhost:4010/__control
 
 The control route is intended for local/test mock use only. Test identities, sites, and tokens are
 obviously fake.
+
+### API-token scenario
+
+The mock Jira site accepts the fake credentials `qa@example.com` and
+`mock-valid-api-token` at `/jira-site/rest/api/3/myself`; any other Basic credentials receive
+401. The request count is visible in `GET /__control` and reset with
+`POST /__control` body `{"resetApiTokenMyselfCount":true}`.
