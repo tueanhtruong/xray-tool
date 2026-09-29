@@ -1,0 +1,17 @@
+[
+  {
+    "fields": {
+      "summary": "scenario outline",
+      "priority": {
+        "name": "Medium"
+      },
+      "labels": [
+        ""
+      ]
+    },
+    "xray_issue_type": "Test",
+    "xray_testtype": "Cucumber",
+    "xray_gherkin_def": "",
+    "xray_test_repository_folder": ""
+  }
+]

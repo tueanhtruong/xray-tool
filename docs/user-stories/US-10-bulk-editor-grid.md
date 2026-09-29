@@ -1,0 +1,84 @@
+# US-10 — Bulk editor grid with local drafts
+
+| Field      | Value                                             |
+| ---------- | ------------------------------------------------- |
+| Milestone  | M3 Edit                                           |
+| Depends on | US-09                                             |
+| State      | tracked in [feature-list.json](feature-list.json) |
+
+## User story
+
+As a QA engineer, I want to edit many test cases in a spreadsheet-like grid, so that coordinated changes take minutes instead of one-by-one edits in Xray.
+
+## Context
+
+Edits are **local drafts only**. Nothing is written to Xray until the diff-review and sync stories (US-16 → US-18). Drafts are stored server-side so they survive reloads and devices.
+
+## Scope
+
+**In**
+
+- Prisma model `TestCaseDraft` (testCase 1:1, nullable fields `summary`, `labels[]`, `status`, `gherkin`, `updatedAt`). A null field means "unchanged".
+- Draft rule: if every draft field equals the snapshot, the draft row is deleted (no phantom changes).
+- `/editor` page opened with a selection (from US-09) or a folder.
+- Grid (virtualized, 1,000 rows smooth) with columns: key, summary ✎, labels ✎ (chips), status ✎, folder, Gherkin preview (opens US-12 editor later; read-only here).
+- Status options = statuses available for the Test issue type (from US-05 metadata).
+- Keyboard: arrows move, Enter/F2 edit, Esc cancel, Tab next cell, Ctrl/Cmd+Z / Shift+Z undo/redo within the session.
+- Changed cells highlighted; row "Revert" button; toolbar badge "N tests changed".
+- Autosave: debounced (e.g. 500 ms) `PUT /api/drafts/:testCaseId`; save indicator (saving / saved / error with retry).
+- Validation: summary required, ≤ 255 chars; labels must not contain spaces; invalid cells block save and show the reason.
+- Read-only (Manual/Generic) rows are visibly locked.
+
+**Out**
+
+- Multi-row bulk actions (US-11), Gherkin editing (US-12).
+
+## Acceptance criteria
+
+```gherkin
+Feature: Bulk editor grid
+
+  Scenario: Edit summary inline
+    Given I opened 3 tests in the editor
+    When I change the summary of ONEDS-14043 and press Enter
+    Then the cell is highlighted as changed
+    And a draft is saved for ONEDS-14043
+    And nothing is sent to Xray or Jira
+
+  Scenario: Drafts survive reload
+    Given I edited labels of 2 tests
+    When I reload the page
+    Then both edits are still shown as changed
+
+  Scenario: Editing back to the original removes the draft
+    Given I changed a summary
+    When I type the original summary again
+    Then the cell is no longer marked changed and no draft exists
+
+  Scenario: Invalid label
+    When I add the label "needs review"
+    Then I see "Jira labels cannot contain spaces" and the draft is not saved
+
+  Scenario: Undo
+    Given I changed the status of a test
+    When I press Cmd+Z
+    Then the previous status is restored and the draft is updated
+
+  Scenario: Read-only tests
+    Given a Manual test is in the grid
+    Then its cells are not editable
+
+  Scenario: Keyboard-only editing
+    When I navigate and edit cells using only the keyboard
+    Then all editable cells are reachable and editable
+```
+
+## Verification
+
+1. Static: `pnpm check`
+2. Runtime: `pnpm test:unit tests/unit/draft-rules.test.ts`, `pnpm test:int tests/integration/drafts-api.test.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-10-bulk-editor.spec.ts`
+
+## Story-specific done checks
+
+- [ ] Assertion in e2e: mock services received zero write requests during editing

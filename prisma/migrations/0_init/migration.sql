@@ -1,0 +1,2 @@
+-- Initial empty migration (US-00). Establishes the migration history;
+-- domain tables are added by later stories.

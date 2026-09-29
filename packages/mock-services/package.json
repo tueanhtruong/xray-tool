@@ -1,0 +1,14 @@
+{
+  "name": "@xray-tool/mock-services",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local stand-in for Atlassian auth, Jira REST and Xray APIs (backup dev target, verify/CI target).",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "h3": "1.15.11"
+  }
+}

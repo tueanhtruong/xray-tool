@@ -1,0 +1,11 @@
+// Prisma schema. Domain models arrive with later stories (US-02+).
+// Connection URL comes from prisma.config.ts (NUXT_DATABASE_URL).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

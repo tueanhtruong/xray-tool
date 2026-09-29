@@ -1,0 +1,15 @@
+node_modules
+coverage
+**/dist
+dist
+.env
+.npmrc
+.env*
+
+.DS_Store
+
+scripts/xray-import.json
+scripts/.xray-token.json
+
+__pycache__*
+.agents*

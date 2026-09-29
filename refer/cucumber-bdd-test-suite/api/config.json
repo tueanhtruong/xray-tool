@@ -1,0 +1,11 @@
+{
+  "projectKey": "ONEDS",
+  "projectId": "10608",
+  "xrayBaseUrl": "https://xray.cloud.getxray.app/api/v2",
+  "jiraBaseUrl": "https://oneline.atlassian.net",
+  "featureRoot": "src/feature",
+  "issueLinkDirections": {
+    "testSet": "is tested by",
+    "testExecution": "is tested by"
+  }
+}

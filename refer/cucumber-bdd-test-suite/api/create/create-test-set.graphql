@@ -1,0 +1,9 @@
+mutation CreateTestSet($jira: JSON!) {
+  createTestSet(jira: $jira) {
+    testSet {
+      issueId
+      jira(fields: ["key", "summary"])
+    }
+    warnings
+  }
+}

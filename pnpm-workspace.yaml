@@ -1,0 +1,16 @@
+packages:
+  - 'packages/*'
+
+# Refuse to install dependencies whose `engines` do not match the active Node.
+# (pnpm 11 reads only auth/registry settings from .npmrc, so this lives here.)
+engineStrict: true
+
+# pnpm 11 skips dependency install scripts unless approved here.
+allowBuilds:
+  prisma: true
+  '@prisma/engines': true
+  esbuild: true
+  # Vue 2/3 shim switcher; defaults to Vue 3 without running its script.
+  vue-demi: false
+  # Native binding ships through optional dependencies; postinstall is only a fallback.
+  unrs-resolver: false

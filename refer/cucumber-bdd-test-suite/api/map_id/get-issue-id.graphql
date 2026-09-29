@@ -1,0 +1,8 @@
+query GetIssueId($jql: String!) {
+  getTests(jql: $jql, limit: 1) {
+    results {
+      issueId
+      jira(fields: ["key"])
+    }
+  }
+}

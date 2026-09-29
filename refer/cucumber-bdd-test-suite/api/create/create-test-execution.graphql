@@ -1,0 +1,9 @@
+mutation CreateTestExecution($jira: JSON!) {
+  createTestExecution(jira: $jira) {
+    testExecution {
+      issueId
+      jira(fields: ["key", "summary"])
+    }
+    warnings
+  }
+}

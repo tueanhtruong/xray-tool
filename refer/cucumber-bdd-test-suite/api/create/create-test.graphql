@@ -1,0 +1,14 @@
+mutation CreateCucumberTest($gherkin: String!, $folderPath: String!, $jira: JSON!) {
+  createTest(
+    testType: { name: "Cucumber" }
+    gherkin: $gherkin
+    folderPath: $folderPath
+    jira: $jira
+  ) {
+    test {
+      issueId
+      jira(fields: ["key", "summary"])
+    }
+    warnings
+  }
+}

@@ -1,0 +1,6 @@
+query GetFolder($projectId: String!, $path: String!) {
+  getFolder(projectId: $projectId, path: $path) {
+    name
+    path
+  }
+}

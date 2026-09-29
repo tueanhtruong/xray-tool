@@ -1,0 +1,5 @@
+mutation UpdateGherkin($issueId: String!, $gherkin: String!) {
+  updateGherkinTestDefinition(issueId: $issueId, gherkin: $gherkin) {
+    issueId
+  }
+}

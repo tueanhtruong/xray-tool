@@ -1,0 +1,9 @@
+mutation CreateFolder($projectId: String!, $path: String!) {
+  createFolder(projectId: $projectId, path: $path) {
+    folder {
+      name
+      path
+    }
+    warnings
+  }
+}

@@ -1,0 +1,3 @@
+mutation UpdateFolder($issueId: String!, $folderPath: String!) {
+  updateTestFolder(issueId: $issueId, folderPath: $folderPath)
+}

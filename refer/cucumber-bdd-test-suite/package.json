@@ -1,0 +1,15 @@
+{
+  "name": "cucumber-bdd-test-suite",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "xray": "node ./scripts/xray.js",
+    "export-xray": "node ./scripts/export-xray.js",
+    "create-xray-tests": "node ./scripts/create-xray-tests.js",
+    "update-xray-tests": "node ./scripts/update-xray-tests.js",
+    "create-test-set-executions": "node ./scripts/create-test-set-executions.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0"
+  }
+}

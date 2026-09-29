@@ -1,0 +1,9 @@
+query GetTests($jql: String!) {
+  getTests(jql: $jql, limit: 1) {
+    total
+    results {
+      projectId
+      jira(fields: ["key", "project"])
+    }
+  }
+}

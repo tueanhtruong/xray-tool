@@ -1,0 +1,54 @@
+{
+  "name": "xray-tool",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=24.11 <25"
+  },
+  "scripts": {
+    "postinstall": "nuxt prepare",
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "nuxt typecheck",
+    "test:unit": "vitest run --project unit",
+    "test:int": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build",
+    "mock": "pnpm --filter @xray-tool/mock-services dev",
+    "verify": "node scripts/verify-story.mjs"
+  },
+  "dependencies": {
+    "@nuxt/ui": "4.11.2",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "nuxt": "4.5.2",
+    "pg": "8.23.0",
+    "tailwindcss": "4.3.3",
+    "vue": "3.5.43",
+    "vue-router": "5.3.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "1.17.0",
+    "@nuxt/test-utils": "4.3.2",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "@vue/test-utils": "2.5.1",
+    "dotenv": "18.0.4",
+    "eslint": "10.11.0",
+    "eslint-config-prettier": "10.1.8",
+    "happy-dom": "20.14.5",
+    "prettier": "3.9.9",
+    "prisma": "7.10.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2",
+    "vue-tsc": "3.3.11"
+  }
+}

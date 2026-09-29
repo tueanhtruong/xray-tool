@@ -1,0 +1,6 @@
+mutation AddTestsToTestExecution($issueId: String!, $testIssueIds: [String!]!) {
+  addTestsToTestExecution(issueId: $issueId, testIssueIds: $testIssueIds) {
+    addedTests
+    warning
+  }
+}

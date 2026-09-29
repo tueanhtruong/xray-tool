@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+.nuxt/
+.output/
+server/generated/
+coverage/
+playwright-report/
+test-results/
+prisma/migrations/
+refer/
+openspec/
+.agents/
+.opencode/
