@@ -97,8 +97,30 @@
         "pnpm test:int tests/integration/auth-oauth.test.ts",
         "pnpm test:e2e e2e/us-02-oauth-sign-in.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "faf55a935962b2e23ad9bc481a88d9c87583b001",
+        "verifiedAt": "2026-09-29T15:36:50.371Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 23890
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/auth",
+            "durationMs": 620
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/auth-oauth.test.ts",
+            "durationMs": 2782
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-02-oauth-sign-in.spec.ts",
+            "durationMs": 4207
+          }
+        ]
+      }
     },
     {
       "id": "US-03",
