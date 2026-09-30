@@ -272,8 +272,30 @@
         "pnpm test:int tests/integration/pull-tests.test.ts",
         "pnpm test:e2e e2e/us-07-pull-tests.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "0b85cf256757a8145cc50d822ef9d350277aeef6",
+        "verifiedAt": "2026-09-30T17:05:44.322Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 18523
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/fingerprint.test.ts",
+            "durationMs": 550
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/pull-tests.test.ts",
+            "durationMs": 3086
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-07-pull-tests.spec.ts",
+            "durationMs": 7241
+          }
+        ]
+      }
     },
     {
       "id": "US-08",
