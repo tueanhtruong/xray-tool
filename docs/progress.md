@@ -2,7 +2,7 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
-## 2026-10-01 — US-08.1 UI redesign implemented (pending verify)
+## 2026-10-01 — US-08.1 UI redesign implemented and verified
 
 **Done**
 
@@ -14,15 +14,15 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 
 **In progress**
 
-- US-08.1 is `active`; `pnpm verify US-08.1` needs a committed, clean tree.
+- None. US-08.1 is `passing` (verified at `1edcefb`, state committed as `8f8585f`); OpenSpec change archived as `2026-10-01-ui-redesign` and delta specs synced into main specs.
 
 **Next**
 
-- Commit `US-08.1: UI redesign`, run `pnpm verify US-08.1`, then archive the OpenSpec change `ui-redesign`.
+- Continue with US-09 (bulk editor grid); its dependency US-08.1 is passing.
 
 **Open questions**
 
-- `refer/template/` is still untracked: commit or gitignore it.
+- `refer/template/` was committed separately as `a135220`.
 - Playwright may leave a lingering process holding the terminal after a failing run; not investigated.
 
 ## 2026-10-01 — US-08.1 UI redesign planned (no code)

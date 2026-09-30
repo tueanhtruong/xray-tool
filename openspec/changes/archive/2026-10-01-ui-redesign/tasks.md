@@ -52,4 +52,4 @@
 - [x] 6.2 Add axe scans for landing, login, settings, repository, and test page in light and dark; add the zero `writeRequestCount` assertion at the end of the spec
 - [x] 6.3 Run `pnpm check`, `pnpm test:unit tests/unit/ui`, `pnpm test:int tests/integration/route-guards.test.ts`, `pnpm test:int`, `pnpm test:e2e e2e/us-08-1-ui-redesign.spec.ts`, then the full `pnpm test:e2e`
 - [x] 6.4 Update docs: ADR 0015 to `accepted`, `docs/architecture.md` routes, `docs/conventions.md` component layout and the `useUserSession().loggedIn` note, US-08/US-09 story files, progress entry
-- [ ] 6.5 Activate US-08.1 in `feature-list.json` when implementation starts and commit `US-08.1: <summary>`; set `passing` only through `pnpm verify US-08.1`
+- [x] 6.5 Activate US-08.1 in `feature-list.json` when implementation starts and commit `US-08.1: <summary>`; set `passing` only through `pnpm verify US-08.1`
