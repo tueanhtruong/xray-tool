@@ -342,8 +342,34 @@
         "pnpm test:e2e e2e/us-08-1-ui-redesign.spec.ts",
         "pnpm test:e2e"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "1edcefbc402ce650bf2938a270e2c831296296bc",
+        "verifiedAt": "2026-09-30T23:25:48.402Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 20055
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/ui",
+            "durationMs": 537
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/route-guards.test.ts",
+            "durationMs": 2897
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-08-1-ui-redesign.spec.ts",
+            "durationMs": 28767
+          },
+          {
+            "cmd": "pnpm test:e2e",
+            "durationMs": 48248
+          }
+        ]
+      }
     },
     {
       "id": "US-09",
