@@ -1,6 +1,6 @@
 # 0005 — Editable fields in v1
 
-- Status: accepted (assumption, revisable before US-10)
+- Status: accepted (assumption, revisable before US-09)
 - Date: 2026-09-29
 - Source: [user-stories README, assumption 3](../user-stories/README.md#assumptions-to-confirm)
 

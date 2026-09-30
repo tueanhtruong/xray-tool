@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-10 (and US-06)                                 |
+| Depends on | US-09, US-11                                      |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -18,7 +18,7 @@ Import never writes to Xray. It produces drafts for existing tests (matched by `
 
 **In**
 
-- Upload `.md` / `.markdown` (max 2 MB, UTF-8). File content parsed server-side with US-06; never executed or rendered as HTML.
+- Upload `.md` / `.markdown` (max 2 MB, UTF-8). File content parsed server-side with US-11; never executed or rendered as HTML.
 - Preview table, one row per scenario, with a computed action:
   - **Update** — `@xray-KEY` found in this workspace and fields differ from snapshot (shows changed fields).
   - **Unchanged** — key found and fields equal the snapshot/draft.
@@ -26,7 +26,7 @@ Import never writes to Xray. It produces drafts for existing tests (matched by `
   - **Error** — parse error, duplicate key, key from another project, key not found in cache, or read-only test type.
 - For Create rows: choose target folder (tree picker, default = folder selected in repository) and optional extra labels.
 - User can deselect rows. Confirm applies all selected rows in one transaction:
-  - Update → merge into `TestCaseDraft` (US-10 rules).
+  - Update → merge into `TestCaseDraft` (US-09 rules).
   - Create → `TestCase` with `origin = IMPORT`, no `issueId`, status `NEW`, draft with all fields.
 - Import record (`ImportBatch`: filename, counts, user, timestamp) for traceability.
 - If an existing draft would be overwritten, the row warns "Overwrites your unsynced edits" and requires explicit opt-in.

@@ -33,7 +33,7 @@ Xray Cloud authenticates with `POST {xrayBase}/api/v2/authenticate` (`client_id`
 
 **Out**
 
-- Any business query (folders/tests come in US-07/US-08).
+- Any business query (folders/tests come in US-06/US-07).
 
 ## Acceptance criteria
 

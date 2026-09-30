@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M4 Sync                                           |
-| Depends on | US-08                                             |
+| Depends on | US-07                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story

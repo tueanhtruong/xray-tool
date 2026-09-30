@@ -1,9 +1,9 @@
-# US-08 — Pull test cases with last-synced snapshot
+# US-07 — Pull test cases with last-synced snapshot
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M2 Read                                           |
-| Depends on | US-06, US-07                                      |
+| Depends on | US-06                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -25,7 +25,7 @@ The snapshot is the **base** for diffs (US-15) and conflict detection (US-17). I
 - Service `pullTests(workspaceId)`:
   - Xray `getTests(jql: "project = KEY", limit: 100, start)` paginated until done; fields: `issueId`, `testType { name kind }`, `gherkin`, `folder { path }`, `lastModified`, `jira(fields: ["key","summary","labels","status","updated"])`.
   - Upsert TestCase + TestCaseSnapshot; remove tests deleted in Xray (no drafts can exist yet — US-17 later refines this rule).
-  - Runs folders pull first (US-07) in the same job.
+  - Runs folders pull first (US-06) in the same job.
   - Commits in one transaction; progress reported as `{ fetched, total }`.
 - Non-Cucumber tests (Manual/Generic) are stored with `testType` and flagged read-only.
 - `POST /api/pull` (full pull) with progress via polling `GET /api/pull/status` (or SSE — record decision).
@@ -76,7 +76,7 @@ Feature: Pull test cases
 
 1. Static: `pnpm check`
 2. Runtime: `pnpm test:unit tests/unit/fingerprint.test.ts`, `pnpm test:int tests/integration/pull-tests.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-08-pull-tests.spec.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-07-pull-tests.spec.ts`
 
 ## Story-specific done checks
 

@@ -1,6 +1,6 @@
 # 0004 — Labels = scenario-level tags
 
-- Status: accepted (assumption, revisable before US-06/US-08)
+- Status: accepted (assumption, revisable before US-07/US-11)
 - Date: 2026-09-29
 - Source: [user-stories README, assumption 2](../user-stories/README.md#assumptions-to-confirm)
 

@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-10 (and US-06)                                 |
+| Depends on | US-09, US-11                                      |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -18,7 +18,7 @@ As a QA engineer, I want to export selected or edited test cases to a Markdown f
 - Version choice: **Local** (snapshot + draft applied; default) or **Xray** (snapshot only).
 - Grouping: one `Feature` per folder (feature name = folder name, description = folder path). Tests imported from a file keep their original feature name/tags/background when available.
 - Each scenario gets tags: labels + `@xray-KEY` (new, unsynced tests have no key tag).
-- Output uses `serializeMarkdown` (US-06): one fenced ` ```gherkin ` block per feature, preceded by a Markdown heading with project key and export timestamp.
+- Output uses `serializeMarkdown` (US-11): one fenced ` ```gherkin ` block per feature, preceded by a Markdown heading with project key and export timestamp.
 - Download filename: `xray-<PROJECT>-<yyyyMMdd-HHmm>.md`; `Content-Disposition` built from sanitized values only.
 - Export is read-only: no drafts or snapshots change.
 

@@ -1,9 +1,9 @@
-# US-10 — Bulk editor grid with local drafts
+# US-09 — Bulk editor grid with local drafts
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-09                                             |
+| Depends on | US-08                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -20,7 +20,7 @@ Edits are **local drafts only**. Nothing is written to Xray until the diff-revie
 
 - Prisma model `TestCaseDraft` (testCase 1:1, nullable fields `summary`, `labels[]`, `status`, `gherkin`, `updatedAt`). A null field means "unchanged".
 - Draft rule: if every draft field equals the snapshot, the draft row is deleted (no phantom changes).
-- `/editor` page opened with a selection (from US-09) or a folder.
+- `/editor` page opened with a selection (from US-08) or a folder.
 - Grid (virtualized, 1,000 rows smooth) with columns: key, summary ✎, labels ✎ (chips), status ✎, folder, Gherkin preview (opens US-12 editor later; read-only here).
 - Status options = statuses available for the Test issue type (from US-05 metadata).
 - Keyboard: arrows move, Enter/F2 edit, Esc cancel, Tab next cell, Ctrl/Cmd+Z / Shift+Z undo/redo within the session.
@@ -31,7 +31,7 @@ Edits are **local drafts only**. Nothing is written to Xray until the diff-revie
 
 **Out**
 
-- Multi-row bulk actions (US-11), Gherkin editing (US-12).
+- Multi-row bulk actions (US-10), Gherkin editing (US-12).
 
 ## Acceptance criteria
 
@@ -77,7 +77,7 @@ Feature: Bulk editor grid
 
 1. Static: `pnpm check`
 2. Runtime: `pnpm test:unit tests/unit/draft-rules.test.ts`, `pnpm test:int tests/integration/drafts-api.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-10-bulk-editor.spec.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-09-bulk-editor.spec.ts`
 
 ## Story-specific done checks
 

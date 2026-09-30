@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-29
-- Story: US-00 (grid used from US-09/US-10)
+- Story: US-00 (grid used from US-08/US-09)
 
 ## Context
 
@@ -17,11 +17,11 @@ inline editing, and virtualization.
 - **Grid: TanStack Table + TanStack Virtual.** Nuxt UI's `UTable` is built on TanStack Table
   and supports virtualization with TanStack Virtual, so "Nuxt UI + TanStack" is one choice.
 - US-00 installs only `@nuxt/ui` (plus `tailwindcss`, which pnpm needs as a direct dependency).
-  `@tanstack/vue-table` / `@tanstack/vue-virtual` are added directly in US-10 only if the grid
+  `@tanstack/vue-table` / `@tanstack/vue-virtual` are added directly in US-09 only if the grid
   outgrows `UTable`.
 
 ## Consequences
 
 - Styling is Tailwind utility classes plus Nuxt UI theme tokens; no second CSS framework.
-- If `UTable` limits inline editing, US-10 drops down to headless TanStack Table and keeps Nuxt UI
+- If `UTable` limits inline editing, US-09 drops down to headless TanStack Table and keeps Nuxt UI
   for cells and controls.

@@ -1,9 +1,9 @@
-# US-11 — Bulk actions across a selection
+# US-10 — Bulk actions across a selection
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-10                                             |
+| Depends on | US-09                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -20,7 +20,7 @@ As a QA engineer, I want to apply one change to many selected test cases at once
   - Set status.
   - Find & replace in summary and/or Gherkin — plain text or regex, case toggle.
 - Preview before apply: number of tests affected and a sample of up to 5 before/after values; regex errors shown inline.
-- Apply runs server-side in one transaction (`POST /api/drafts/bulk`), reusing the draft rule from US-10 (no-op changes create no drafts).
+- Apply runs server-side in one transaction (`POST /api/drafts/bulk`), reusing the draft rule from US-09 (no-op changes create no drafts).
 - Undo the whole bulk action in one step.
 - Read-only tests in the selection are skipped and reported ("2 read-only tests skipped").
 - Regex safety: execution time limit per test (e.g. use `re2` or a timeout) to prevent ReDoS.
@@ -73,7 +73,7 @@ Feature: Bulk actions
 
 1. Static: `pnpm check`
 2. Runtime: `pnpm test:unit tests/unit/bulk-actions`, `pnpm test:int tests/integration/bulk-drafts.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-11-bulk-actions.spec.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-10-bulk-actions.spec.ts`
 
 ## Story-specific done checks
 

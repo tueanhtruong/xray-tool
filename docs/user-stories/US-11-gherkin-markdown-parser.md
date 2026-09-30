@@ -1,9 +1,9 @@
-# US-06 — Gherkin Markdown parser & serializer (library)
+# US-11 — Gherkin Markdown parser & serializer (library)
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
-| Milestone  | M2 Read                                           |
-| Depends on | US-00                                             |
+| Milestone  | M3 Edit                                           |
+| Depends on | US-09                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -12,7 +12,7 @@ As a QA engineer, I want Markdown files with Gherkin features to be parsed and w
 
 ## Context
 
-Pure library in `shared/gherkin-md/` with no Nuxt/DB dependency, used by pull (US-08), steps editor (US-12), import (US-13), export (US-14) and diff (US-15). Building it before the UI keeps it fully unit-testable (Lecture 10: stable foundations first). Reference behaviour: [refer/cucumber-bdd-test-suite/scripts/gherkin-parser.js](../../refer/cucumber-bdd-test-suite/scripts/gherkin-parser.js) and the sample [autocomplete-onfocusout-ONEDS-10390.feature](../../refer/cucumber-bdd-test-suite/src/feature/autocomplete-onfocusout-ONEDS-10390.feature).
+Pure library in `shared/gherkin-md/` with no Nuxt/DB dependency, used by the steps editor (US-12), import (US-13), export (US-14) and Markdown re-tagging after sync (US-19). It is sequenced after the editor grid (US-09) so it is built right before its first consumers; it has no technical dependency on the grid. Keeping it a pure library keeps it fully unit-testable (Lecture 10: stable foundations first). Reference behaviour: [refer/cucumber-bdd-test-suite/scripts/gherkin-parser.js](../../refer/cucumber-bdd-test-suite/scripts/gherkin-parser.js) and the sample [autocomplete-onfocusout-ONEDS-10390.feature](../../refer/cucumber-bdd-test-suite/src/feature/autocomplete-onfocusout-ONEDS-10390.feature).
 
 ## Scope
 

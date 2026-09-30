@@ -37,35 +37,35 @@ stateDiagram-v2
 | [US-03](US-03-jira-api-token-fallback.md)   | Sign in with Jira email + API token (fallback)                 | M1 Connect    | 02                 |
 | [US-04](US-04-xray-credentials-and-jwt.md)  | Xray Cloud credentials & JWT exchange                          | M1 Connect    | 02                 |
 | [US-05](US-05-jira-project-selection.md)    | Select Jira/Xray project for the workspace                     | M1 Connect    | 03, 04             |
-| [US-06](US-06-gherkin-markdown-parser.md)   | Gherkin Markdown parser & serializer (library)                 | M2 Read       | 00                 |
-| [US-07](US-07-pull-folder-tree.md)          | Pull Xray folder tree into local cache                         | M2 Read       | 05                 |
-| [US-08](US-08-pull-test-cases.md)           | Pull test cases with last-synced snapshot                      | M2 Read       | 06, 07             |
-| [US-09](US-09-test-repository-browser.md)   | Browse the cached Test Repository                              | M2 Read       | 08                 |
-| [US-10](US-10-bulk-editor-grid.md)          | Bulk editor grid with local drafts                             | M3 Edit       | 09                 |
-| [US-11](US-11-bulk-actions.md)              | Bulk actions across a selection                                | M3 Edit       | 10                 |
-| [US-12](US-12-gherkin-steps-editor.md)      | Gherkin steps editor                                           | M3 Edit       | 10                 |
-| [US-13](US-13-markdown-import.md)           | Import test cases from Markdown                                | M3 Edit       | 10                 |
-| [US-14](US-14-markdown-export.md)           | Export test cases to Markdown                                  | M3 Edit       | 10                 |
-| [US-15](US-15-diff-engine.md)               | Field-level diff engine (library)                              | M4 Sync       | 08                 |
+| [US-06](US-06-pull-folder-tree.md)          | Pull Xray folder tree into local cache                         | M2 Read       | 05                 |
+| [US-07](US-07-pull-test-cases.md)           | Pull test cases with last-synced snapshot                      | M2 Read       | 06                 |
+| [US-08](US-08-test-repository-browser.md)   | Browse the cached Test Repository                              | M2 Read       | 07                 |
+| [US-09](US-09-bulk-editor-grid.md)          | Bulk editor grid with local drafts                             | M3 Edit       | 08                 |
+| [US-10](US-10-bulk-actions.md)              | Bulk actions across a selection                                | M3 Edit       | 09                 |
+| [US-11](US-11-gherkin-markdown-parser.md)   | Gherkin Markdown parser & serializer (library)                 | M3 Edit       | 09                 |
+| [US-12](US-12-gherkin-steps-editor.md)      | Gherkin steps editor                                           | M3 Edit       | 09, 11             |
+| [US-13](US-13-markdown-import.md)           | Import test cases from Markdown                                | M3 Edit       | 09, 11             |
+| [US-14](US-14-markdown-export.md)           | Export test cases to Markdown                                  | M3 Edit       | 09, 11             |
+| [US-15](US-15-diff-engine.md)               | Field-level diff engine (library)                              | M4 Sync       | 07                 |
 | [US-16](US-16-diff-review-ui.md)            | Review changes before sync                                     | M4 Sync       | 13, 15             |
 | [US-17](US-17-conflict-detection.md)        | Detect and resolve remote conflicts                            | M4 Sync       | 16                 |
 | [US-18](US-18-sync-update-existing.md)      | Sync edits of existing tests to Xray/Jira                      | M4 Sync       | 17                 |
 | [US-19](US-19-sync-create-new-tests.md)     | Create new tests in Xray from imports                          | M4 Sync       | 18                 |
 | [US-20](US-20-sync-history-audit.md)        | Sync history & audit log                                       | M4 Sync       | 18                 |
-| [US-21](US-21-e2e-golden-path-release.md)   | End-to-end golden path & release readiness                     | M5 Release    | 11, 12, 14, 19, 20 |
+| [US-21](US-21-e2e-golden-path-release.md)   | End-to-end golden path & release readiness                     | M5 Release    | 10, 12, 14, 19, 20 |
 
 ```mermaid
 graph LR
   US00 --> US01 --> US02 --> US03 --> US05
-  US02 --> US04 --> US05 --> US07 --> US08
-  US00 --> US06 --> US08 --> US09 --> US10
-  US10 --> US11 & US12 & US13 & US14
-  US08 --> US15 --> US16
+  US02 --> US04 --> US05 --> US06 --> US07 --> US08 --> US09
+  US09 --> US10 & US11
+  US11 --> US12 & US13 & US14
+  US07 --> US15 --> US16
   US13 --> US16 --> US17 --> US18 --> US19 & US20
-  US11 & US12 & US14 & US19 & US20 --> US21
+  US10 & US12 & US14 & US19 & US20 --> US21
 ```
 
-Recommended execution order is the ID order; it respects all dependencies.
+Recommended execution order is the ID order; it respects all dependencies. US-11 (parser) is sequenced after the editor grid so it is built right before its first consumers (US-12, US-13, US-14).
 
 ## Standard commands (established by US-00)
 

@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M5 Release                                        |
-| Depends on | US-11, US-12, US-14, US-19, US-20                 |
+| Depends on | US-10, US-12, US-14, US-19, US-20                 |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story

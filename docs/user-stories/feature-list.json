@@ -212,84 +212,84 @@
     },
     {
       "id": "US-06",
-      "title": "Gherkin Markdown parser & serializer (library)",
-      "file": "US-06-gherkin-markdown-parser.md",
-      "dependsOn": ["US-00"],
-      "behavior": "Parses .md with gherkin fences or raw Gherkin into features/scenarios; maps scenarios to test case fields; canonical serializer round-trips losslessly; located errors.",
-      "verification": ["pnpm check", "pnpm test:unit tests/unit/gherkin-md"],
-      "state": "not_started",
-      "evidence": null
-    },
-    {
-      "id": "US-07",
       "title": "Pull Xray folder tree into local cache",
-      "file": "US-07-pull-folder-tree.md",
+      "file": "US-06-pull-folder-tree.md",
       "dependsOn": ["US-05"],
       "behavior": "Full folder tree pulled transactionally and idempotently; remote deletions reflected; concurrent pulls rejected.",
       "verification": [
         "pnpm check",
         "pnpm test:int tests/integration/pull-folders.test.ts",
-        "pnpm test:e2e e2e/us-07-pull-folders.spec.ts"
+        "pnpm test:e2e e2e/us-06-pull-folders.spec.ts"
+      ],
+      "state": "not_started",
+      "evidence": null
+    },
+    {
+      "id": "US-07",
+      "title": "Pull test cases with last-synced snapshot",
+      "file": "US-07-pull-test-cases.md",
+      "dependsOn": ["US-06"],
+      "behavior": "All project tests pulled with paginated GraphQL into TestCase + exact TestCaseSnapshot with fingerprint; transactional; non-Cucumber tests read-only.",
+      "verification": [
+        "pnpm check",
+        "pnpm test:unit tests/unit/fingerprint.test.ts",
+        "pnpm test:int tests/integration/pull-tests.test.ts",
+        "pnpm test:e2e e2e/us-07-pull-tests.spec.ts"
       ],
       "state": "not_started",
       "evidence": null
     },
     {
       "id": "US-08",
-      "title": "Pull test cases with last-synced snapshot",
-      "file": "US-08-pull-test-cases.md",
-      "dependsOn": ["US-06", "US-07"],
-      "behavior": "All project tests pulled with paginated GraphQL into TestCase + exact TestCaseSnapshot with fingerprint; transactional; non-Cucumber tests read-only.",
+      "title": "Browse the cached Test Repository",
+      "file": "US-08-test-repository-browser.md",
+      "dependsOn": ["US-07"],
+      "behavior": "Folder tree + test list with search, filters, deep links, read-only detail and safe rendering; selection can open the editor.",
       "verification": [
         "pnpm check",
-        "pnpm test:unit tests/unit/fingerprint.test.ts",
-        "pnpm test:int tests/integration/pull-tests.test.ts",
-        "pnpm test:e2e e2e/us-08-pull-tests.spec.ts"
+        "pnpm test:int tests/integration/tests-query-api.test.ts",
+        "pnpm test:e2e e2e/us-08-repository-browser.spec.ts"
       ],
       "state": "not_started",
       "evidence": null
     },
     {
       "id": "US-09",
-      "title": "Browse the cached Test Repository",
-      "file": "US-09-test-repository-browser.md",
+      "title": "Bulk editor grid with local drafts",
+      "file": "US-09-bulk-editor-grid.md",
       "dependsOn": ["US-08"],
-      "behavior": "Folder tree + test list with search, filters, deep links, read-only detail and safe rendering; selection can open the editor.",
+      "behavior": "Virtualized grid edits summary/labels/status as server-side drafts with autosave, validation, undo; no remote writes; no-op edits remove drafts.",
       "verification": [
         "pnpm check",
-        "pnpm test:int tests/integration/tests-query-api.test.ts",
-        "pnpm test:e2e e2e/us-09-repository-browser.spec.ts"
+        "pnpm test:unit tests/unit/draft-rules.test.ts",
+        "pnpm test:int tests/integration/drafts-api.test.ts",
+        "pnpm test:e2e e2e/us-09-bulk-editor.spec.ts"
       ],
       "state": "not_started",
       "evidence": null
     },
     {
       "id": "US-10",
-      "title": "Bulk editor grid with local drafts",
-      "file": "US-10-bulk-editor-grid.md",
+      "title": "Bulk actions across a selection",
+      "file": "US-10-bulk-actions.md",
       "dependsOn": ["US-09"],
-      "behavior": "Virtualized grid edits summary/labels/status as server-side drafts with autosave, validation, undo; no remote writes; no-op edits remove drafts.",
+      "behavior": "Add/remove/rename labels, set status, find & replace (ReDoS-safe) across a selection with preview, single-step undo, drafts only.",
       "verification": [
         "pnpm check",
-        "pnpm test:unit tests/unit/draft-rules.test.ts",
-        "pnpm test:int tests/integration/drafts-api.test.ts",
-        "pnpm test:e2e e2e/us-10-bulk-editor.spec.ts"
+        "pnpm test:unit tests/unit/bulk-actions",
+        "pnpm test:int tests/integration/bulk-drafts.test.ts",
+        "pnpm test:e2e e2e/us-10-bulk-actions.spec.ts"
       ],
       "state": "not_started",
       "evidence": null
     },
     {
       "id": "US-11",
-      "title": "Bulk actions across a selection",
-      "file": "US-11-bulk-actions.md",
-      "dependsOn": ["US-10"],
-      "behavior": "Add/remove/rename labels, set status, find & replace (ReDoS-safe) across a selection with preview, single-step undo, drafts only.",
-      "verification": [
-        "pnpm check",
-        "pnpm test:unit tests/unit/bulk-actions",
-        "pnpm test:int tests/integration/bulk-drafts.test.ts",
-        "pnpm test:e2e e2e/us-11-bulk-actions.spec.ts"
-      ],
+      "title": "Gherkin Markdown parser & serializer (library)",
+      "file": "US-11-gherkin-markdown-parser.md",
+      "dependsOn": ["US-09"],
+      "behavior": "Parses .md with gherkin fences or raw Gherkin into features/scenarios; maps scenarios to test case fields; canonical serializer round-trips losslessly; located errors.",
+      "verification": ["pnpm check", "pnpm test:unit tests/unit/gherkin-md"],
       "state": "not_started",
       "evidence": null
     },
@@ -297,7 +297,7 @@
       "id": "US-12",
       "title": "Gherkin steps editor",
       "file": "US-12-gherkin-steps-editor.md",
-      "dependsOn": ["US-10"],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Code editor with Gherkin highlighting, completion, live parser validation, compare-with-Xray, saves Gherkin draft.",
       "verification": [
         "pnpm check",
@@ -311,7 +311,7 @@
       "id": "US-13",
       "title": "Import test cases from Markdown",
       "file": "US-13-markdown-import.md",
-      "dependsOn": ["US-10"],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Upload .md, preview Update/Unchanged/Create/Error per scenario, confirm into drafts and new local tests; never writes to Xray.",
       "verification": [
         "pnpm check",
@@ -326,7 +326,7 @@
       "id": "US-14",
       "title": "Export test cases to Markdown",
       "file": "US-14-markdown-export.md",
-      "dependsOn": ["US-10"],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Export selection/folder/drafted tests as Local or Xray version to canonical .md grouped by folder; export then import is a no-op.",
       "verification": [
         "pnpm check",
@@ -341,7 +341,7 @@
       "id": "US-15",
       "title": "Field-level diff engine (library)",
       "file": "US-15-diff-engine.md",
-      "dependsOn": ["US-08"],
+      "dependsOn": ["US-07"],
       "behavior": "Deterministic field-level diff (summary, label sets, status, Gherkin hunks) with normalization and a data-only sync plan.",
       "verification": ["pnpm check", "pnpm test:unit tests/unit/diff"],
       "state": "not_started",
@@ -422,7 +422,7 @@
       "id": "US-21",
       "title": "End-to-end golden path & release readiness",
       "file": "US-21-e2e-golden-path-release.md",
-      "dependsOn": ["US-11", "US-12", "US-14", "US-19", "US-20"],
+      "dependsOn": ["US-10", "US-12", "US-14", "US-19", "US-20"],
       "behavior": "Full journey sign-in -> pull -> edit -> import -> conflict -> review -> sync -> export -> re-import passes on a fresh DB; no secret leaks; production container healthy.",
       "verification": [
         "pnpm check",

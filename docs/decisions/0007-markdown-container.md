@@ -1,6 +1,6 @@
 # 0007 — Markdown container format
 
-- Status: accepted (assumption, revisable before US-06)
+- Status: accepted (assumption, revisable before US-11)
 - Date: 2026-09-29
 - Source: [user-stories README, assumption 5](../user-stories/README.md#assumptions-to-confirm)
 
@@ -14,5 +14,5 @@
 
 ## Consequences
 
-- The parser (US-06) handles both forms, and its errors report the line inside the original file.
+- The parser (US-11) handles both forms, and its errors report the line inside the original file.
 - The reference example lives in `refer/cucumber-bdd-test-suite/`.

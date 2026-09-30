@@ -1,9 +1,9 @@
-# US-09 — Browse the cached Test Repository
+# US-08 — Browse the cached Test Repository
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M2 Read                                           |
-| Depends on | US-08                                             |
+| Depends on | US-07                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -19,15 +19,15 @@ As a QA engineer, I want to browse folders and test cases like in Xray's Test Re
 - Test list columns: key, summary, labels, status, folder, test type, read-only badge.
 - Search by key, summary text, or label; filter by status, label, test type; toggle "include subfolders".
 - Server-side pagination/virtualized list; URL reflects folder + filters (shareable, back-button safe).
-- Header shows "Last pulled <relative time>" and a "Pull from Xray" button (US-08) with progress.
+- Header shows "Last pulled <relative time>" and a "Pull from Xray" button (US-07) with progress.
 - Detail drawer: read-only view of summary, labels, status and syntax-highlighted Gherkin.
 - "Open in Jira" link: `target="_blank" rel="noopener noreferrer"`, URL built from stored site, never from user input.
-- Row selection (checkbox) with "Open N selected in editor" action (target page stubbed until US-10).
+- Row selection (checkbox) with "Open N selected in editor" action (target page stubbed until US-09).
 - Empty states: not pulled yet, empty folder, no search results.
 
 **Out**
 
-- Editing (US-10+).
+- Editing (US-09+).
 
 ## Acceptance criteria
 
@@ -73,7 +73,7 @@ Feature: Browse test repository
 
 1. Static: `pnpm check`
 2. Runtime: `pnpm test:int tests/integration/tests-query-api.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-09-repository-browser.spec.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-08-repository-browser.spec.ts`
 
 ## Story-specific done checks
 

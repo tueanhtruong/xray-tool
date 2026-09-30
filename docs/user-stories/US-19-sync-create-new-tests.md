@@ -26,7 +26,7 @@ Uses Xray `createTest` and folder mutations (see [refer/cucumber-bdd-test-suite/
 - Duplicate prevention:
   - Item marked `CREATING` with a client-generated `createToken` **before** the call.
   - If the process dies between request and response, the item becomes `UNKNOWN_OUTCOME`; retry first searches Jira (JQL: project + summary + created by me in the last hour) and asks the user to link an existing match or create anew.
-- After sync, "Download updated Markdown" offers the original imported file content with `@xray-KEY` tags inserted for created scenarios (via US-06 serializer).
+- After sync, "Download updated Markdown" offers the original imported file content with `@xray-KEY` tags inserted for created scenarios (via US-11 serializer).
 - Created tests appear in the repository browser immediately.
 
 **Out**

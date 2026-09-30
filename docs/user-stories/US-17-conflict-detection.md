@@ -25,7 +25,7 @@ Three versions exist per test: **base** (snapshot), **remote** (current Xray sta
   - same field changed both sides with different values → **conflict** for that field.
   - remote deleted → **deleted remotely**.
 - Triggers: "Check for remote changes" button on Review; automatically when a SyncBatch starts (US-18) and after every pull.
-- Pull rule update (extends US-08): pull never overwrites a draft; tests with drafts go through the same three-way logic.
+- Pull rule update (extends US-07): pull never overwrites a draft; tests with drafts go through the same three-way logic.
 - Conflict UI: per conflicted field show Base / Xray now / Mine; choose "Keep mine" or "Take Xray" (and for Gherkin, edit a merged result in the US-12 editor).
 - Conflicted or remotely deleted tests cannot be included in a sync until resolved; resolution updates snapshot + draft accordingly.
 

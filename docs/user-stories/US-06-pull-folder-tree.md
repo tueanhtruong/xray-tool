@@ -1,4 +1,4 @@
-# US-07 — Pull Xray folder tree into local cache
+# US-06 — Pull Xray folder tree into local cache
 
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
@@ -29,7 +29,7 @@ Xray is the source of truth. Folder data is fetched via GraphQL `getFolder(proje
 **Out**
 
 - Creating, renaming or moving folders in Xray.
-- UI tree (US-09) — this story exposes the API only, plus a minimal "Pull folders" button with result counts.
+- UI tree (US-08) — this story exposes the API only, plus a minimal "Pull folders" button with result counts.
 
 ## Acceptance criteria
 
@@ -68,7 +68,7 @@ Feature: Pull folder tree
 
 1. Static: `pnpm check`
 2. Runtime: `pnpm test:int tests/integration/pull-folders.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-07-pull-folders.spec.ts`
+3. End-to-end: `pnpm test:e2e e2e/us-06-pull-folders.spec.ts`
 
 ## Story-specific done checks
 

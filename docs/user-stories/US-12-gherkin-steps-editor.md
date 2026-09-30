@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-10                                             |
+| Depends on | US-09, US-11                                      |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -17,10 +17,10 @@ As a QA engineer, I want to edit a test case's Gherkin steps in a proper code ed
 - Side panel/drawer opened from a grid row (and from the repository detail drawer via "Edit").
 - Code editor (e.g. CodeMirror 6) with Gherkin highlighting, 2-space indentation, line numbers.
 - Keyword completion: `Given`, `When`, `Then`, `And`, `But`, `Examples:`, table pipes.
-- Live validation using the US-06 parser (wrapping steps in a synthetic `Feature/Scenario` for parsing); errors underlined with message and line.
+- Live validation using the US-11 parser (wrapping steps in a synthetic `Feature/Scenario` for parsing); errors underlined with message and line.
 - Lint rules (warnings, not blockers): no `When`/`Then` → warning; empty step text → error; trailing whitespace auto-trimmed on save.
 - Side-by-side toggle: original (snapshot) vs current draft.
-- Save writes the `gherkin` draft field (US-10 rules; identical to snapshot → field cleared). Unsaved changes prompt on close.
+- Save writes the `gherkin` draft field (US-09 rules; identical to snapshot → field cleared). Unsaved changes prompt on close.
 - Scenario Outline tests edit `Examples` in the same editor.
 
 **Out**
