@@ -207,8 +207,26 @@
         "pnpm test:int tests/integration/project-selection.test.ts",
         "pnpm test:e2e e2e/us-05-project-selection.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "6362b450f4c8e36c9d11958a9d699a849aa859b9",
+        "verifiedAt": "2026-09-30T03:35:11.681Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 19245
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/project-selection.test.ts",
+            "durationMs": 2681
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-05-project-selection.spec.ts",
+            "durationMs": 6183
+          }
+        ]
+      }
     },
     {
       "id": "US-06",

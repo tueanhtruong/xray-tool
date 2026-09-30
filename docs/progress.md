@@ -10,7 +10,7 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 - Project replacement now checks persisted drafts and deletes the previous project's folders and test cases atomically with selection updates.
 - Integration coverage exercises draft blocking, cross-workspace isolation, cache cleanup, first selection, probe failure, and transaction rollback. US-05 E2E includes project switching and persisted-draft blocking.
 - `pnpm check`, focused project-selection integration tests, and US-05 E2E pass on the mock target.
-- US-05 verification remains pending until the implementation is committed; `pnpm verify US-05` is the only command that may mark it passing.
+- `pnpm verify US-05` passed against commit `6362b450f4c8e36c9d11958a9d699a849aa859b9`; US-05 is `passing`.
 
 **Done**
 
