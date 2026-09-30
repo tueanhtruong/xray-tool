@@ -272,7 +272,7 @@
         "pnpm test:int tests/integration/pull-tests.test.ts",
         "pnpm test:e2e e2e/us-07-pull-tests.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {
