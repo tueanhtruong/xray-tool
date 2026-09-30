@@ -171,8 +171,30 @@
         "pnpm test:int tests/integration/xray-connection.test.ts",
         "pnpm test:e2e e2e/us-04-xray-connection.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "0539afc884d48eee5b502c3606bbe4cbff4a474d",
+        "verifiedAt": "2026-09-30T01:32:12.319Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 20233
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/xray-client",
+            "durationMs": 1329
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/xray-connection.test.ts",
+            "durationMs": 2639
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-04-xray-connection.spec.ts",
+            "durationMs": 4551
+          }
+        ]
+      }
     },
     {
       "id": "US-05",
