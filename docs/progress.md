@@ -11,14 +11,15 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 - Added deterministic Xray mock controls/routes, unit/integration/Playwright coverage, `docs/integrations/xray.md`, ADR 0013, and the Xray connection OpenSpec capability.
 - `pnpm check`, targeted Xray/mock integration tests (9), and US-04 Playwright tests (2) pass.
 - OpenSpec change `xray-credentials-and-jwt` archived after syncing both delta specs to main specs.
+- `pnpm verify US-04` passed and recorded evidence for implementation commit `0539afc`; state update committed as `5be9e60`.
 
 **In progress**
 
-- US-04 is `active`; `pnpm verify US-04` is pending because story verification requires committed code and a clean tree.
+- None. US-04 is `passing`.
 
 **Next**
 
-- Commit `US-04: Xray credentials and JWT exchange`, run `pnpm verify US-04`, then commit `US-04: mark passing`.
+- Begin US-05, Jira/Xray project selection; its dependencies US-03 and US-04 are passing.
 
 **Open questions**
 
