@@ -1,8 +1,8 @@
 # Xray Cloud integration
 
 US-04 connects each workspace to Xray Cloud. The app stores API client credentials encrypted and
-uses Xray JWTs only on the server. No project, folder, or test business queries are part of this
-connection flow.
+uses Xray JWTs only on the server. US-05 adds the read-only root-folder probe used to verify a
+selected Jira project's Xray access; folder/test synchronization remains part of later stories.
 
 ## Endpoints and regions
 
@@ -12,6 +12,9 @@ The client uses these Xray Cloud API v2 endpoints:
   returns a short-lived JWT.
 - `POST /api/v2/graphql` with JSON `{ "query": "…", "variables": { … } }` and
   `Authorization: Bearer <JWT>`.
+- `query GetFolder($projectId: String!, $path: String!)` verifies access using the numeric Jira
+  project ID and root path `/` during project selection. The server keeps this small query with the
+  Xray client so it is compatible with both Vite development and Nitro production builds.
 
 The supported, server allow-listed regions are:
 

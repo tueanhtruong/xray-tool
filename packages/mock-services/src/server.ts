@@ -24,6 +24,8 @@ export function createMockApp() {
   let xrayUnauthorizedRemaining = 0
   let xrayRateLimitRemaining = 0
   let xrayUnavailableRemaining = 0
+  let projectSearchCount = 0
+  let projectMode = 'valid'
   const router = createRouter()
     .get(
       '/health',
@@ -41,11 +43,15 @@ export function createMockApp() {
           xrayRateLimitRemaining?: unknown
           xrayUnavailableRemaining?: unknown
           resetXrayCounts?: unknown
+          projectMode?: unknown
+          resetProjectSearchCount?: unknown
         }
         if (typeof body.mode === 'string') mode = body.mode
         if (body.resetRefreshCount === true) refreshCount = 0
         if (body.resetApiTokenMyselfCount === true) apiTokenMyselfCount = 0
         if (typeof body.xrayMode === 'string') xrayMode = body.xrayMode
+        if (typeof body.projectMode === 'string') projectMode = body.projectMode
+        if (body.resetProjectSearchCount === true) projectSearchCount = 0
         if (typeof body.xrayUnauthorizedRemaining === 'number') {
           xrayUnauthorizedRemaining = Math.max(0, Math.floor(body.xrayUnauthorizedRemaining))
         }
@@ -69,6 +75,8 @@ export function createMockApp() {
           xrayUnauthorizedRemaining,
           xrayRateLimitRemaining,
           xrayUnavailableRemaining,
+          projectMode,
+          projectSearchCount,
         }
       }),
     )
@@ -84,6 +92,8 @@ export function createMockApp() {
         xrayUnauthorizedRemaining,
         xrayRateLimitRemaining,
         xrayUnavailableRemaining,
+        projectMode,
+        projectSearchCount,
       })),
     )
     .post(
@@ -130,6 +140,17 @@ export function createMockApp() {
         const body = (await readBody(event)) as { query?: unknown; variables?: unknown }
         if (xrayMode === 'graphql-errors') {
           return { errors: [{ message: 'API key lacks permission for project DEMO' }] }
+        }
+        const variables = body.variables as { projectId?: unknown; path?: unknown } | undefined
+        if (variables?.projectId === '999' || xrayMode === 'project-denied') {
+          return { errors: [{ message: 'API key lacks permission for this project' }] }
+        }
+        if (body.query && String(body.query).includes('GetFolder')) {
+          if (xrayMode === 'project-unavailable') {
+            setResponseStatus(event, 503)
+            return { errors: [{ message: 'Temporarily unavailable' }] }
+          }
+          return { data: { getFolder: { name: 'Root', path: String(variables?.path ?? '/') } } }
         }
         return { data: { query: body.query ?? null, variables: body.variables ?? null } }
       }),
@@ -223,12 +244,131 @@ export function createMockApp() {
       })),
     )
     .get(
+      '/atlassian-api/ex/jira/:cloudId/rest/api/3/project/search',
+      defineEventHandler((event) => {
+        projectSearchCount += 1
+        const query = getQuery(event)
+        const projects = [
+          { id: '10001', key: 'ONEDS', name: 'One Design System' },
+          { id: '10002', key: 'DEMO', name: 'Demo Project' },
+          { id: '999', key: 'ABC', name: 'Restricted Project' },
+        ].filter((project) => {
+          if (projectMode === 'no-test' && project.key === 'ONEDS') return true
+          return `${project.key} ${project.name}`.toLowerCase().includes(String(query.query ?? '').toLowerCase())
+        })
+        const startAt = Number(query.startAt ?? 0)
+        const maxResults = Number(query.maxResults ?? 20)
+        const values = projects.slice(startAt, startAt + maxResults)
+        return {
+          startAt,
+          maxResults,
+          total: projects.length,
+          isLast: startAt + values.length >= projects.length,
+          values,
+        }
+      }),
+    )
+    .get(
+      '/atlassian-api/ex/jira/:cloudId/rest/api/3/project/:projectId',
+      defineEventHandler((event) => {
+        const projectId = event.context.params?.projectId ?? ''
+        const project = [
+          { id: '10001', key: 'ONEDS', name: 'One Design System' },
+          { id: '10002', key: 'DEMO', name: 'Demo Project' },
+          { id: '999', key: 'ABC', name: 'Restricted Project' },
+        ].find((candidate) => candidate.id === projectId)
+        if (!project) {
+          setResponseStatus(event, 404)
+          return { errorMessages: ['Project not found'] }
+        }
+        return {
+          ...project,
+          issueTypes: projectMode === 'no-test' && project.key === 'ONEDS'
+            ? [{ id: '10000', name: 'Story' }]
+            : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }],
+        }
+      }),
+    )
+    .get(
+      '/atlassian-api/ex/jira/:cloudId/rest/api/3/issuetype/project',
+      defineEventHandler((event) => {
+        const query = getQuery(event)
+        return projectMode === 'no-test' && query.projectId === '10001'
+          ? [{ id: '10000', name: 'Story' }]
+          : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }]
+      }),
+    )
+    .get(
+      '/atlassian-api/ex/jira/:cloudId/rest/api/3/project/:projectId/statuses',
+      defineEventHandler(() => [
+        { id: '10001', name: 'Test', statuses: [{ id: '1', name: 'To Do' }, { id: '2', name: 'Ready' }] },
+      ]),
+    )
+    .get(
       '/atlassian-api/ex/jira/:cloudId/rest/api/3/myself',
       defineEventHandler((event) => ({
         accountId: 'fake-atlassian-account',
         cloudId: event.context.params?.cloudId,
         displayName: 'Example QA',
       })),
+    )
+    .get(
+      '/jira-site/rest/api/3/project/search',
+      defineEventHandler((event) => {
+        projectSearchCount += 1
+        const query = getQuery(event)
+        const projects = [
+          { id: '10001', key: 'ONEDS', name: 'One Design System' },
+          { id: '10002', key: 'DEMO', name: 'Demo Project' },
+          { id: '999', key: 'ABC', name: 'Restricted Project' },
+        ].filter((project) => `${project.key} ${project.name}`.toLowerCase().includes(String(query.query ?? '').toLowerCase()))
+        const startAt = Number(query.startAt ?? 0)
+        const maxResults = Number(query.maxResults ?? 20)
+        const values = projects.slice(startAt, startAt + maxResults)
+        return {
+          startAt,
+          maxResults,
+          total: projects.length,
+          isLast: startAt + values.length >= projects.length,
+          values,
+        }
+      }),
+    )
+    .get(
+      '/jira-site/rest/api/3/project/:projectId',
+      defineEventHandler((event) => {
+        const projectId = event.context.params?.projectId ?? ''
+        const project = [
+          { id: '10001', key: 'ONEDS', name: 'One Design System' },
+          { id: '10002', key: 'DEMO', name: 'Demo Project' },
+          { id: '999', key: 'ABC', name: 'Restricted Project' },
+        ].find((candidate) => candidate.id === projectId)
+        if (!project) {
+          setResponseStatus(event, 404)
+          return { errorMessages: ['Project not found'] }
+        }
+        return {
+          ...project,
+          issueTypes: projectMode === 'no-test' && project.key === 'ONEDS'
+            ? [{ id: '10000', name: 'Story' }]
+            : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }],
+        }
+      }),
+    )
+    .get(
+      '/jira-site/rest/api/3/issuetype/project',
+      defineEventHandler((event) => {
+        const query = getQuery(event)
+        return projectMode === 'no-test' && query.projectId === '10001'
+          ? [{ id: '10000', name: 'Story' }]
+          : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }]
+      }),
+    )
+    .get(
+      '/jira-site/rest/api/3/project/:projectId/statuses',
+      defineEventHandler(() => [
+        { id: '10001', name: 'Test', statuses: [{ id: '1', name: 'To Do' }, { id: '2', name: 'Ready' }] },
+      ]),
     )
     .get(
       '/jira-site/rest/api/3/myself',

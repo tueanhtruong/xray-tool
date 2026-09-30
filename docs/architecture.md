@@ -78,6 +78,13 @@ against the built-in `atlassian.net` suffix and optional `NUXT_JIRA_SITE_URL_SUF
 workspace client retains the same `fetch` interface and selects cloud-ID/Bearer OAuth or
 site-origin/Basic API-token behavior using the stored connection method.
 
+Project discovery and metadata requests use that workspace-scoped Jira client. US-05 stores the
+selected Jira project key, numeric ID, Test issue type, and status options on the workspace only
+after Jira metadata and the Xray root-folder probe both succeed. A project readiness service gates
+repository pages and project-data APIs; workspace onboarding remains available until the project
+is ready. Project switching checks for drafts and clears project-owned caches within its database
+transaction as the later cache models are introduced.
+
 ## Mock services (`packages/mock-services`)
 
 - `@xray-tool/mock-services` is an h3 1.x app run with `pnpm mock` on `MOCK_SERVICES_PORT` (default 4010).

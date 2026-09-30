@@ -4,6 +4,15 @@ import { resolveXrayBaseUrl } from '../../utils/integration-urls'
 import { registerSecret } from '../../utils/logger'
 import { decryptSecret, encryptSecret } from '../../utils/crypto'
 
+const GET_FOLDER_QUERY = `
+  query GetFolder($projectId: String!, $path: String!) {
+    getFolder(projectId: $projectId, path: $path) {
+      name
+      path
+    }
+  }
+`
+
 const CLIENT_ID_CONTEXT = 'XrayConnection:clientId'
 const CLIENT_SECRET_CONTEXT = 'XrayConnection:clientSecret'
 const JWT_CONTEXT = 'XrayConnection:jwt'
@@ -273,6 +282,24 @@ export function getWorkspaceXrayClient(workspaceId: string): WorkspaceXrayClient
       throw new XrayError('Xray GraphQL request failed after the retry limit.')
     },
   }
+}
+
+export interface XrayFolder {
+  name: string
+  path: string
+}
+
+export async function getXrayProjectRoot(workspaceId: string, projectId: string): Promise<XrayFolder> {
+  const result = await getWorkspaceXrayClient(workspaceId).graphql<{
+    getFolder: XrayFolder | null
+  }>(
+    GET_FOLDER_QUERY,
+    { projectId, path: '/' },
+  )
+  if (!result.getFolder || result.getFolder.path !== '/') {
+    throw new XrayError('Xray returned an invalid root-folder response for this project.')
+  }
+  return result.getFolder
 }
 
 export async function verifyXrayCredentials(

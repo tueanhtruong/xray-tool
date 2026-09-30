@@ -2,6 +2,29 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-30 — US-05 Jira/Xray project selection
+
+**Done**
+
+- Activated US-05 after US-03 and US-04 passed; baseline `./scripts/init.sh` and `pnpm check` passed.
+- Confirmed Jira Cloud APIs: `GET /rest/api/3/project/search`, `GET /rest/api/3/project/{projectIdOrKey}`, `GET /rest/api/3/issuetype/project?projectId=...`, and `GET /rest/api/3/project/{projectIdOrKey}/statuses`.
+- Added nullable workspace project metadata and migration; existing workspaces remain unready until selection.
+- Added Jira project search/metadata integration, Xray root-folder probe, selection API/service, onboarding UI, repository readiness boundaries, mock behaviors, integration tests, and E2E coverage.
+- `pnpm check`, project-selection integration tests (4), and US-05 E2E tests (2) pass on the mock target.
+- OpenSpec change `jira-project-selection` archived after syncing `jira-project-selection/spec.md` to the main capability spec.
+
+**In progress**
+
+- US-05 is `blocked`; draft persistence and project-owned cache models do not exist yet, so the specified real draft guard and cache cleanup are not implemented. The OpenSpec task list also retains unchecked implementation tasks.
+
+**Next**
+
+- Complete US-05 remaining requirements after the draft/cache models are introduced, then run `pnpm verify US-05` on the committed implementation.
+
+**Open questions**
+
+- Pending-draft detection currently returns no drafts; project-cache cleanup is currently a transaction boundary. Both need concrete implementations once US-06/US-07/US-09 provide their models before US-05 can pass.
+
 ## 2026-09-30 — US-04 Xray credentials & JWT exchange
 
 **Done**

@@ -4,7 +4,9 @@
 | ---------- | ------------------------------------------------- |
 | Milestone  | M1 Connect                                        |
 | Depends on | US-03, US-04                                      |
-| State      | tracked in [feature-list.json](feature-list.json) |
+| State      | blocked — implementation follow-up required        |
+
+Archived implementation plan: [jira-project-selection](../../openspec/changes/archive/2026-09-30-jira-project-selection/).
 
 ## User story
 
@@ -70,3 +72,4 @@ Feature: Project selection
 ## Story-specific done checks
 
 - [ ] The "pending drafts" guard is implemented as a service function reused later (drafts table may still be empty)
+- [ ] Persisted drafts block project changes, and project cache cleanup is implemented with the US-06/US-07 cache models.

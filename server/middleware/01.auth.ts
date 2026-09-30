@@ -10,6 +10,7 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/jira/select-site',
   '/api/auth/jira/api-token',
   '/api/auth/xray',
+  '/api/project',
   '/api/health',
   '/auth/logout',
 ])

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 const appName = 'Xray Tool'
-const { data } = await useFetch<{ workspace: { name: string; siteUrl: string } }>(
+const { data, refresh: refreshSession } = await useFetch<{ workspace: {
+  name: string
+  siteUrl: string
+  jiraConnected: boolean
+  xrayConnected: boolean
+  projectReady: boolean
+  jiraProjectKey: string | null
+  jiraProjectName: string | null
+} }>(
   '/api/auth/session',
 )
 const { clear } = useUserSession()
@@ -26,6 +34,58 @@ const xrayError = ref('')
 const xrayMessage = ref('')
 const connectionPending = ref(false)
 const xrayPending = ref(false)
+const projectQuery = ref('')
+const projectStartAt = ref(0)
+const projectPage = ref<{ values: Array<{ id: string; key: string; name: string }>; total: number; startAt: number; maxResults: number; isLast: boolean }>()
+const projectError = ref('')
+const projectMessage = ref('')
+const projectPending = ref(false)
+
+async function searchProjects(startAt = 0) {
+  projectError.value = ''
+  projectStartAt.value = startAt
+  try {
+    const params = new URLSearchParams({ query: projectQuery.value, startAt: String(startAt), maxResults: '20' })
+    const response = await fetch(`/api/jira/projects?${params.toString()}`)
+    const body = await response.json() as typeof projectPage.value
+    if (!response.ok) throw { data: body }
+    projectPage.value = body ?? undefined
+  } catch (error) {
+    projectError.value = error && typeof error === 'object' && 'data' in error && error.data &&
+      typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
+      ? error.data.message
+      : 'Jira projects could not be loaded. Check the Jira connection and try again.'
+  }
+}
+
+async function selectProject(project: { id: string; key: string; name: string }) {
+  projectError.value = ''
+  projectMessage.value = ''
+  if (
+    data.value?.workspace.projectReady &&
+    data.value.workspace.jiraProjectKey !== project.key &&
+    !window.confirm(`Change the selected project to ${project.key}? The previous project's local cache will be cleared.`)
+  ) return
+  projectPending.value = true
+  try {
+    await $fetch('/api/project', {
+      method: 'PUT',
+      body: {
+        projectId: project.id,
+        confirmChange: data.value?.workspace.projectReady === true,
+      },
+    })
+    projectMessage.value = `${project.key} is ready.`
+    await refreshSession()
+  } catch (error) {
+    projectError.value = error && typeof error === 'object' && 'data' in error && error.data &&
+      typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
+      ? error.data.message
+      : 'Project selection could not be completed. Please try again.'
+  } finally {
+    projectPending.value = false
+  }
+}
 
 async function logout() {
   await $fetch('/auth/logout', {
@@ -83,6 +143,7 @@ async function saveXrayConnection() {
     xrayClientSecret.value = ''
     xrayMessage.value = 'Connected to Xray Cloud'
     await refreshXrayConnection()
+    await refreshSession()
   } catch (error) {
     xrayError.value =
       error && typeof error === 'object' && 'data' in error && error.data &&
@@ -105,6 +166,40 @@ useHead({ title: appName })
     <p class="mt-2 text-muted">
       Connected to {{ data?.workspace.name }} ({{ data?.workspace.siteUrl }}).
     </p>
+    <section class="mt-8 max-w-lg space-y-3" data-testid="onboarding-checklist">
+      <h2 class="text-xl font-semibold">Workspace setup</h2>
+      <ol class="list-inside list-decimal space-y-1">
+        <li>{{ data?.workspace.jiraConnected ? '✓ Jira connected' : 'Jira connection required' }}</li>
+        <li>{{ data?.workspace.xrayConnected ? '✓ Xray connected' : 'Xray connection required' }}</li>
+        <li>
+          <template v-if="data?.workspace.projectReady">
+            ✓ Project selected: {{ data.workspace.jiraProjectKey }} — {{ data.workspace.jiraProjectName }}
+          </template>
+          <template v-else>Project selection required</template>
+        </li>
+      </ol>
+      <p v-if="data?.workspace.projectReady" data-testid="workspace-ready">Ready</p>
+      <form v-if="data?.workspace.jiraConnected && data?.workspace.xrayConnected" class="space-y-3" @submit.prevent="searchProjects(0)">
+        <UFormField label="Search Jira projects" name="projectQuery">
+          <UInput v-model="projectQuery" data-testid="project-query" />
+        </UFormField>
+        <UButton type="submit" :loading="projectPending" data-testid="project-search">Search projects</UButton>
+      </form>
+      <UAlert v-if="projectError" color="error" :title="projectError" data-testid="project-error" />
+      <UAlert v-if="projectMessage" color="success" :title="projectMessage" data-testid="project-success" />
+      <ul v-if="projectPage" class="space-y-2" data-testid="project-results">
+        <li v-for="project in projectPage.values" :key="project.id" class="flex items-center justify-between gap-3">
+          <span>{{ project.key }} — {{ project.name }}</span>
+          <UButton :loading="projectPending" @click="selectProject(project)">
+            {{ data?.workspace.projectReady ? 'Select project' : 'Select' }}
+          </UButton>
+        </li>
+      </ul>
+      <div v-if="projectPage && projectPage.total > projectPage.maxResults" class="flex gap-2">
+        <UButton :disabled="projectStartAt === 0" variant="outline" @click="searchProjects(Math.max(0, projectStartAt - projectPage.maxResults))">Previous</UButton>
+        <UButton :disabled="projectPage.isLast" variant="outline" @click="searchProjects(projectStartAt + projectPage.maxResults)">Next</UButton>
+      </div>
+    </section>
     <section class="mt-8 max-w-lg space-y-3" data-testid="connection-settings">
       <h2 class="text-xl font-semibold">Jira connection</h2>
       <p>Method: {{ connection?.authMethod === 'API_TOKEN' ? 'API token' : 'Atlassian OAuth' }}</p>
