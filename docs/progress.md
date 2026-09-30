@@ -2,6 +2,28 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-30 — US-04 Xray credentials & JWT exchange
+
+**Done**
+
+- Added workspace-owned Xray connection persistence with encrypted client ID, client secret, and JWT cache, plus fixed Global/US/EU/AU routing and the `NUXT_XRAY_BASE_URL` override.
+- Added verified-before-save settings APIs/UI, server-side GraphQL JWT reuse/refresh, one-time 401 recovery, bounded 429/503 retry, and sanitized GraphQL errors.
+- Added deterministic Xray mock controls/routes, unit/integration/Playwright coverage, `docs/integrations/xray.md`, ADR 0013, and the Xray connection OpenSpec capability.
+- `pnpm check`, targeted Xray/mock integration tests (9), and US-04 Playwright tests (2) pass.
+- OpenSpec change `xray-credentials-and-jwt` archived after syncing both delta specs to main specs.
+
+**In progress**
+
+- US-04 is `active`; `pnpm verify US-04` is pending because story verification requires committed code and a clean tree.
+
+**Next**
+
+- Commit `US-04: Xray credentials and JWT exchange`, run `pnpm verify US-04`, then commit `US-04: mark passing`.
+
+**Open questions**
+
+- Cross-process JWT refresh locking is deferred; current database cache and process-local single-flight are sufficient for the current deployment assumptions.
+
 ## 2026-09-29 — US-03 Jira API-token fallback
 
 **Done**

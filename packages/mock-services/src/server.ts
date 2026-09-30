@@ -18,6 +18,12 @@ export function createMockApp() {
   let mode = 'single'
   let refreshCount = 0
   let apiTokenMyselfCount = 0
+  let xrayMode = 'valid'
+  let xrayAuthenticateCount = 0
+  let xrayGraphqlCount = 0
+  let xrayUnauthorizedRemaining = 0
+  let xrayRateLimitRemaining = 0
+  let xrayUnavailableRemaining = 0
   const router = createRouter()
     .get(
       '/health',
@@ -30,16 +36,103 @@ export function createMockApp() {
           mode?: unknown
           resetRefreshCount?: unknown
           resetApiTokenMyselfCount?: unknown
+          xrayMode?: unknown
+          xrayUnauthorizedRemaining?: unknown
+          xrayRateLimitRemaining?: unknown
+          xrayUnavailableRemaining?: unknown
+          resetXrayCounts?: unknown
         }
         if (typeof body.mode === 'string') mode = body.mode
         if (body.resetRefreshCount === true) refreshCount = 0
         if (body.resetApiTokenMyselfCount === true) apiTokenMyselfCount = 0
-        return { mode, refreshCount, apiTokenMyselfCount }
+        if (typeof body.xrayMode === 'string') xrayMode = body.xrayMode
+        if (typeof body.xrayUnauthorizedRemaining === 'number') {
+          xrayUnauthorizedRemaining = Math.max(0, Math.floor(body.xrayUnauthorizedRemaining))
+        }
+        if (typeof body.xrayRateLimitRemaining === 'number') {
+          xrayRateLimitRemaining = Math.max(0, Math.floor(body.xrayRateLimitRemaining))
+        }
+        if (typeof body.xrayUnavailableRemaining === 'number') {
+          xrayUnavailableRemaining = Math.max(0, Math.floor(body.xrayUnavailableRemaining))
+        }
+        if (body.resetXrayCounts === true) {
+          xrayAuthenticateCount = 0
+          xrayGraphqlCount = 0
+        }
+        return {
+          mode,
+          refreshCount,
+          apiTokenMyselfCount,
+          xrayMode,
+          xrayAuthenticateCount,
+          xrayGraphqlCount,
+          xrayUnauthorizedRemaining,
+          xrayRateLimitRemaining,
+          xrayUnavailableRemaining,
+        }
       }),
     )
     .get(
       '/__control',
-      defineEventHandler(() => ({ mode, refreshCount, apiTokenMyselfCount })),
+      defineEventHandler(() => ({
+        mode,
+        refreshCount,
+        apiTokenMyselfCount,
+        xrayMode,
+        xrayAuthenticateCount,
+        xrayGraphqlCount,
+        xrayUnauthorizedRemaining,
+        xrayRateLimitRemaining,
+        xrayUnavailableRemaining,
+      })),
+    )
+    .post(
+      '/xray/api/v2/authenticate',
+      defineEventHandler(async (event) => {
+        xrayAuthenticateCount += 1
+        const body = (await readBody(event)) as Record<string, unknown>
+        if (
+          xrayMode === 'invalid-credentials' ||
+          body.client_id !== 'mock-xray-client-id' ||
+          body.client_secret !== 'mock-xray-client-secret'
+        ) {
+          setResponseStatus(event, 401)
+          return { error: 'invalid_client' }
+        }
+        return `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 600 })).toString('base64url')}.signature`
+      }),
+    )
+    .post(
+      '/xray/api/v2/graphql',
+      defineEventHandler(async (event) => {
+        xrayGraphqlCount += 1
+        const authorization = event.node.req.headers.authorization
+        if (!authorization?.startsWith('Bearer header.')) {
+          setResponseStatus(event, 401)
+          return { errors: [{ message: 'Unauthorized' }] }
+        }
+        if (xrayUnauthorizedRemaining > 0) {
+          xrayUnauthorizedRemaining -= 1
+          setResponseStatus(event, 401)
+          return { errors: [{ message: 'Unauthorized' }] }
+        }
+        if (xrayRateLimitRemaining > 0) {
+          xrayRateLimitRemaining -= 1
+          event.node.res.setHeader('retry-after', '0')
+          setResponseStatus(event, 429)
+          return { errors: [{ message: 'Rate limited' }] }
+        }
+        if (xrayUnavailableRemaining > 0) {
+          xrayUnavailableRemaining -= 1
+          setResponseStatus(event, 503)
+          return { errors: [{ message: 'Temporarily unavailable' }] }
+        }
+        const body = (await readBody(event)) as { query?: unknown; variables?: unknown }
+        if (xrayMode === 'graphql-errors') {
+          return { errors: [{ message: 'API key lacks permission for project DEMO' }] }
+        }
+        return { data: { query: body.query ?? null, variables: body.variables ?? null } }
+      }),
     )
     .get(
       '/atlassian-auth/authorize',

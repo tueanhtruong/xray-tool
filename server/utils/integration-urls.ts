@@ -1,4 +1,5 @@
 import type { ServerConfig } from '#shared/config/schema'
+import { XRAY_REGION_URLS, type XrayRegion } from '#shared/xray/regions'
 
 export const LIVE_INTEGRATION_URLS = {
   atlassianAuthUrl: 'https://auth.atlassian.com',
@@ -45,4 +46,16 @@ export function resolveIntegrationUrls(config: UrlConfig): IntegrationUrls {
     xrayBaseUrl: config.xrayBaseUrl ?? derived.xrayBaseUrl,
     mockJiraSiteUrl: derived.mockJiraSiteUrl,
   }
+}
+
+/** Resolve a fixed Xray region endpoint; the explicit service override has priority. */
+export function resolveXrayBaseUrl(
+  config: UrlConfig,
+  region: XrayRegion = 'GLOBAL',
+): string {
+  if (config.xrayBaseUrl) return config.xrayBaseUrl.replace(/\/+$/, '')
+  if (config.integrationTarget === 'mock') {
+    return resolveIntegrationUrls(config).xrayBaseUrl.replace(/\/+$/, '')
+  }
+  return XRAY_REGION_URLS[region]
 }

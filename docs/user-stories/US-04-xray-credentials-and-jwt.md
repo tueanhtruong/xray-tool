@@ -79,4 +79,4 @@ Feature: Xray Cloud connection
 
 ## Story-specific done checks
 
-- [ ] `docs/integrations/xray.md` lists endpoints, regions, auth flow, retry policy
+- [x] `docs/integrations/xray.md` lists endpoints, regions, auth flow, retry policy

@@ -171,7 +171,7 @@
         "pnpm test:int tests/integration/xray-connection.test.ts",
         "pnpm test:e2e e2e/us-04-xray-connection.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {

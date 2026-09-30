@@ -37,10 +37,33 @@ model Workspace {
   updatedAt      DateTime        @updatedAt
   owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   jiraConnection JiraConnection?
+  xrayConnection XrayConnection?
 
   @@unique([ownerId, cloudId])
   @@unique([ownerId, siteOrigin])
   @@index([ownerId])
+}
+
+enum XrayRegion {
+  GLOBAL
+  US
+  EU
+  AU
+}
+
+model XrayConnection {
+  id                String     @id @default(cuid())
+  workspaceId       String     @unique
+  region            XrayRegion @default(GLOBAL)
+  clientId          String
+  clientSecret      String
+  jwt               String?
+  jwtExpiresAt      DateTime?
+  verifiedAt        DateTime
+  configuredAt      DateTime   @default(now())
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  workspace         Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model JiraConnection {

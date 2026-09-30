@@ -28,6 +28,67 @@ describe('mock services', () => {
     expect(res.status).toBe(404)
   })
 
+  it('provides deterministic Xray authentication, GraphQL, and controlled failure modes', async () => {
+    const control = new URL('/__control', baseUrl)
+    const reset = await fetch(control, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ xrayMode: 'valid', resetXrayCounts: true }),
+    })
+    expect(reset.status).toBe(200)
+
+    const authUrl = new URL('/xray/api/v2/authenticate', baseUrl)
+    const authenticate = () => fetch(authUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        client_id: 'mock-xray-client-id',
+        client_secret: 'mock-xray-client-secret',
+      }),
+    })
+    const auth = await authenticate()
+    expect(auth.status).toBe(200)
+    const jwt = await auth.text()
+    expect(jwt.split('.')).toHaveLength(3)
+
+    const graphqlUrl = new URL('/xray/api/v2/graphql', baseUrl)
+    const graphql = (authorization: string) => fetch(graphqlUrl, {
+      method: 'POST',
+      headers: { authorization, 'content-type': 'application/json' },
+      body: JSON.stringify({ query: 'query { example }', variables: { value: 1 } }),
+    })
+    const result = await graphql(`Bearer ${jwt}`)
+    expect(await result.json()).toEqual({
+      data: { query: 'query { example }', variables: { value: 1 } },
+    })
+
+    await fetch(control, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ xrayMode: 'invalid-credentials' }),
+    })
+    expect((await authenticate()).status).toBe(401)
+
+    await fetch(control, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        xrayMode: 'valid',
+        xrayUnauthorizedRemaining: 1,
+        xrayRateLimitRemaining: 1,
+        xrayUnavailableRemaining: 1,
+      }),
+    })
+    expect((await graphql(`Bearer ${jwt}`)).status).toBe(401)
+    expect((await graphql(`Bearer ${jwt}`)).headers.get('retry-after')).toBe('0')
+    expect((await graphql(`Bearer ${jwt}`)).status).toBe(503)
+    const counts = await (await fetch(control)).json() as {
+      xrayAuthenticateCount: number
+      xrayGraphqlCount: number
+    }
+    expect(counts).toMatchObject({ xrayAuthenticateCount: 2, xrayGraphqlCount: 4 })
+  })
+
   it('provides deterministic Atlassian OAuth and multi-site scenarios', async () => {
     const control = new URL('/__control', baseUrl)
     const update = await fetch(control, {
