@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 import { mockServicesUrl } from '../tests/support/env'
+import { expectLoginWithNext, signInWithOAuth, signOut } from './support'
 
 async function setMode(request: APIRequestContext, mode: string) {
   await request.post(new URL('/__control', mockServicesUrl()).toString(), { data: { mode } })
@@ -8,10 +9,8 @@ async function setMode(request: APIRequestContext, mode: string) {
 
 test('signs in with one Jira site, hides tokens, and signs out', async ({ page, request }) => {
   await setMode(request, 'single')
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
-  await expect(page.getByTestId('app-name')).toHaveText('Xray Tool')
+  await signInWithOAuth(page)
+  await expect(page.getByTestId('app-name')).toHaveText('XrayBulk')
   await expect(page.getByText('Example One')).toBeVisible()
 
   const cookies = await page.context().cookies()
@@ -29,10 +28,10 @@ test('signs in with one Jira site, hides tokens, and signs out', async ({ page, 
   const apiText = await apiResponse.text()
   expect(apiText).not.toMatch(/mock-(?:access|refresh)-token/i)
 
-  await page.getByTestId('logout').click()
+  await signOut(page)
   await expect(page).toHaveURL('/login')
-  await page.goto('/')
-  await expect(page).toHaveURL('/login')
+  await page.goto('/settings')
+  await expectLoginWithNext(page, '/settings')
 })
 
 test('asks for a site when several Jira sites are accessible', async ({ page, request }) => {
@@ -44,7 +43,8 @@ test('asks for a site when several Jira sites are accessible', async ({ page, re
   await expect(page.getByText('Example Two')).toBeVisible()
   await page.getByLabel(/Example Two/).check()
   await page.getByTestId('select-site').click()
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL(/\/(settings|repository)(\?|$)/)
+  await page.goto('/settings')
   await expect(page.getByText('Example Two')).toBeVisible()
 })
 
@@ -66,9 +66,7 @@ test('rejects a state mismatch without persisting OAuth credentials', async ({ p
 
 test('refreshes an expired access token transparently', async ({ page, request }) => {
   await setMode(request, 'expired')
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
+  await signInWithOAuth(page)
   const session = (await page.context().cookies()).find((cookie) => cookie.name === 'nuxt-session')
   const response = await page.request.get('/api/jira/myself', {
     headers: { cookie: `nuxt-session=${session?.value}` },
@@ -81,15 +79,13 @@ test('refreshes an expired access token transparently', async ({ page, request }
 
 test('clears the session when the refresh token is revoked', async ({ page, request }) => {
   await setMode(request, 'revoked')
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
+  await signInWithOAuth(page)
   const result = await page.evaluate(async () => {
     const response = await fetch('/api/jira/myself')
     return { status: response.status, body: await response.text() }
   })
   expect(result.status).toBe(401)
   expect(result.body.toLowerCase()).toContain('sign in again')
-  await page.goto('/')
-  await expect(page).toHaveURL('/login')
+  await page.goto('/settings')
+  await expectLoginWithNext(page, '/settings')
 })

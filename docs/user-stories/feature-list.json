@@ -330,10 +330,26 @@
       }
     },
     {
+      "id": "US-08.1",
+      "title": "XrayBulk UI redesign (design system, shell, and screens)",
+      "file": "US-08.1-ui-redesign.md",
+      "dependsOn": ["US-08"],
+      "behavior": "Design tokens with light/dark themes, shared header shell, public landing, tabbed login, /settings for workspace setup, two-pane repository and read-only /tests/:key page per refer/template; protected routes redirect to /login?next= (open-redirect safe); no drafts, editing, or remote writes.",
+      "verification": [
+        "pnpm check",
+        "pnpm test:unit tests/unit/ui",
+        "pnpm test:int tests/integration/route-guards.test.ts",
+        "pnpm test:e2e e2e/us-08-1-ui-redesign.spec.ts",
+        "pnpm test:e2e"
+      ],
+      "state": "active",
+      "evidence": null
+    },
+    {
       "id": "US-09",
       "title": "Bulk editor grid with local drafts",
       "file": "US-09-bulk-editor-grid.md",
-      "dependsOn": ["US-08"],
+      "dependsOn": ["US-08.1"],
       "behavior": "Virtualized grid edits summary/labels/status as server-side drafts with autosave, validation, undo; no remote writes; no-op edits remove drafts.",
       "verification": [
         "pnpm check",

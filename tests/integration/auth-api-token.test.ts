@@ -134,7 +134,8 @@ describe('Jira API-token sign-in', () => {
       email: 'qa@example.com',
       apiToken: 'mock-valid-api-token',
     })
-    expect(response.status, `${await response.clone().text()}\n${server.output()}`).toBe(303)
+    expect(response.status, `${await response.clone().text()}\n${server.output()}`).toBe(200)
+    expect(await response.clone().json()).toEqual({ redirectTo: '/repository' })
     const sessionCookie = response.headers
       .getSetCookie()
       .find((cookie) => cookie.startsWith('nuxt-session='))
@@ -190,7 +191,19 @@ describe('Jira API-token sign-in', () => {
       email: 'qa@example.com',
       apiToken: 'mock-valid-api-token',
     })
-    expect(reconnect.status).toBe(303)
+    expect(reconnect.status).toBe(200)
+  })
+
+  it('returns a validated redirect target and ignores unsafe next values', async () => {
+    const body = { siteUrl: 'https://one.atlassian.net', email: 'qa@example.com', apiToken: 'mock-valid-api-token' }
+    const safe = await signIn(server, { ...body, next: '/tests/ONEDS-1?folder=%2FA' })
+    expect(safe.status).toBe(200)
+    expect(await safe.json()).toEqual({ redirectTo: '/tests/ONEDS-1?folder=%2FA' })
+    for (const next of ['https://evil.example/x', '//evil.example', '/\\evil.example']) {
+      const response = await signIn(server, { ...body, next })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({ redirectTo: '/repository' })
+    }
   })
 
   it('runs the same Jira-client contract for OAuth and API-token workspaces', async () => {

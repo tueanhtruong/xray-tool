@@ -1,10 +1,17 @@
 import { expect, test } from '@playwright/test'
+import { expectLoginWithNext } from './support'
 
-test('signed-out users are redirected to the login page', async ({ page }) => {
+test('signed-out users are redirected from protected pages to the login page', async ({ page }) => {
+  await page.goto('/settings')
+  await expectLoginWithNext(page, '/settings')
+  await expect(page.getByTestId('jira-login')).toHaveText('Continue with Atlassian')
+  await expect(page).toHaveTitle(/Sign in · XrayBulk/)
+})
+
+test('the landing page is public', async ({ page }) => {
   await page.goto('/')
-  await expect(page).toHaveURL('/login')
-  await expect(page.getByTestId('jira-login')).toHaveText('Sign in with Atlassian')
-  await expect(page).toHaveTitle(/Sign in · Xray Tool/)
+  await expect(page).toHaveURL('/')
+  await expect(page.getByTestId('app-name')).toBeVisible()
 })
 
 test('GET /api/health returns status ok', async ({ request }) => {

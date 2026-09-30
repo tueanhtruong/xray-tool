@@ -28,6 +28,15 @@
 | `e2e/`                                                               | Playwright specs, named `us-XX-<topic>.spec.ts`                       |
 | `docs/`                                                              | Harness docs, ADRs, user stories                                      |
 
+Shared UI building blocks (`AppHeader`, `PageCard`, `EmptyState`, `ErrorBanner`, ...) live in
+`app/components/`; style with design tokens (CSS variables) or Nuxt UI theme colors, never
+per-component hex values. Pure UI helpers (e.g. `safeNextPath`, the API-token form check) live in
+`shared/ui/` so they are unit tested. Page-level data and session access go through composables in
+`app/composables/` (`useWorkspaceSession`, `useRepositoryPull`): `useUserSession().loggedIn` is
+always false in this app because the session has no `user` field. Nuxt UI icons are not installed,
+so avoid components that render default icons (for example `UButton :loading`); use text glyphs.
+`vue/no-v-html` is an error.
+
 Unit tests mirror the code they cover (`tests/unit/config/schema.test.ts` ↔ `shared/config/schema.ts`).
 
 ## Code style

@@ -15,6 +15,13 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  app: {
+    head: {
+      htmlAttrs: { lang: 'en' },
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+    },
+  },
+
   // Every key here is overridable at runtime by its NUXT_* env variable
   // (e.g. databaseUrl <- NUXT_DATABASE_URL). Values are validated at server
   // start by server/plugins/00.validate-config.ts, never at build time.

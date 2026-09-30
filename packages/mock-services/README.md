@@ -28,7 +28,7 @@ is listening yet, and stop only an instance they started.
 | `/atlassian-auth/*`   | authorize and token/refresh mock routes                      |
 | `/atlassian-api/*`    | accessible resources, `/me`, and OAuth Jira identity route  |
 | `/jira-site/*`        | direct Jira API-token `/rest/api/3/myself` route              |
-| `GET/POST /__control` | select deterministic scenario and inspect request counts     |
+| `GET/POST /__control` | select deterministic scenario and inspect request counts, including `writeRequestCount` (non-GET Jira REST calls and GraphQL mutations; reset with `resetWriteRequestCount`) |
 | unknown routes        | `404`                                                        |
 
 ### Reserved prefixes

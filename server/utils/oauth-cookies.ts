@@ -1,9 +1,11 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { validateSessionPassword } from '#shared/config/schema'
+import { safeNextPath } from '#shared/ui/safe-next-path'
 import { deleteCookie, getCookie, setCookie, type H3Event } from 'h3'
 
 const STATE_COOKIE = 'jira_oauth_state'
 const PENDING_COOKIE = 'jira_oauth_pending'
+const NEXT_COOKIE = 'login_next'
 const COOKIE_MAX_AGE = 600
 
 function cookieSecret(): string {
@@ -74,4 +76,18 @@ export function clearPendingFlow(event: H3Event): void {
 
 export function ensureSessionConfig(): void {
   cookieSecret()
+}
+
+export function setLoginNext(event: H3Event, path: string): void {
+  setCookie(event, NEXT_COOKIE, sign(path), cookieOptions())
+}
+
+/** Returns the stored return path only if its signature is valid and the path is still safe. */
+export function readLoginNext(event: H3Event): string | undefined {
+  return safeNextPath(verify(getCookie(event, NEXT_COOKIE)))
+}
+
+export function clearLoginNext(event: H3Event): void {
+  if (getCookie(event, NEXT_COOKIE) === undefined) return
+  deleteCookie(event, NEXT_COOKIE, { path: '/' })
 }

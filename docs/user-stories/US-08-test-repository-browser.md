@@ -6,6 +6,8 @@
 | Depends on | US-07                                             |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
+> **UI superseded by [US-08.1](US-08.1-ui-redesign.md):** the page layout adopts the XrayBulk design; the detail drawer becomes the `/tests/:key` page and the "Open N selected in editor" stub becomes "Open in editor" (one selected test). Data, query, and safety behavior below is unchanged.
+
 ## User story
 
 As a QA engineer, I want to browse folders and test cases like in Xray's Test Repository, so that I can find and select the tests I want to work on.

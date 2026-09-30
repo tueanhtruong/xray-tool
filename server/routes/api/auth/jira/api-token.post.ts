@@ -1,4 +1,5 @@
-import { getHeader, getRequestURL, readBody, sendRedirect } from 'h3'
+import { postLoginPath } from '#shared/ui/safe-next-path'
+import { getHeader, getRequestURL, readBody } from 'h3'
 import { z } from 'zod'
 import {
   ApiTokenRateLimitExceeded,
@@ -10,6 +11,7 @@ const bodySchema = z.object({
   siteUrl: z.string().min(1).max(512),
   email: z.email().max(320),
   apiToken: z.string().min(1).max(1024),
+  next: z.string().max(2048).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -33,7 +35,7 @@ export default defineEventHandler(async (event) => {
       parsed.data.apiToken,
     )
     await setAppSession(event, session)
-    return sendRedirect(event, '/', 303)
+    return { redirectTo: postLoginPath(parsed.data.next) }
   } catch (error) {
     if (error instanceof ApiTokenRateLimitExceeded) throw httpError(429, error.message)
     if (error instanceof JiraSiteAlreadyConnected) throw httpError(409, error.message)

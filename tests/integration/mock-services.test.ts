@@ -89,6 +89,44 @@ describe('mock services', () => {
     expect(counts).toMatchObject({ xrayAuthenticateCount: 2, xrayGraphqlCount: 4 })
   })
 
+  it('counts write requests: Jira non-GET calls and GraphQL mutations, not reads or auth', async () => {
+    const control = new URL('/__control', baseUrl)
+    const post = (body: unknown) =>
+      fetch(control, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    await post({ xrayMode: 'valid', resetWriteRequestCount: true })
+    const count = async () => ((await (await fetch(control)).json()) as { writeRequestCount: number }).writeRequestCount
+    expect(await count()).toBe(0)
+
+    await fetch(new URL('/jira-site/rest/api/3/myself', baseUrl))
+    await fetch(new URL('/atlassian-auth/oauth/token', baseUrl), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ grant_type: 'authorization_code', code: 'test-code' }),
+    })
+    const auth = await fetch(new URL('/xray/api/v2/authenticate', baseUrl), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ client_id: 'mock-xray-client-id', client_secret: 'mock-xray-client-secret' }),
+    })
+    const jwt = (await auth.text()).replace(/^"|"$/g, '')
+    const graphql = (query: string) =>
+      fetch(new URL('/xray/api/v2/graphql', baseUrl), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${jwt}` },
+        body: JSON.stringify({ query, variables: {} }),
+      })
+    await graphql('query GetFolder { getFolder { name } }')
+    expect(await count()).toBe(0)
+
+    await graphql('mutation { updateTest { issueId } }')
+    expect(await count()).toBe(1)
+    await fetch(new URL('/jira-site/rest/api/3/issue/ONEDS-1', baseUrl), { method: 'PUT', body: '{}' })
+    expect(await count()).toBe(2)
+
+    await post({ resetWriteRequestCount: true })
+    expect(await count()).toBe(0)
+  })
+
   it('provides deterministic Atlassian OAuth and multi-site scenarios', async () => {
     const control = new URL('/__control', baseUrl)
     const update = await fetch(control, {

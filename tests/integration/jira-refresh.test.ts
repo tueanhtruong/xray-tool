@@ -126,8 +126,8 @@ describe('workspace Jira token refresh', () => {
       cookies.some((value) => value.startsWith('nuxt-session=')),
       JSON.stringify(cookies),
     ).toBe(true)
-    const nextPage = await fetch(server.url, { redirect: 'manual' })
+    const nextPage = await fetch(`${server.url}/settings`, { redirect: 'manual' })
     expect(nextPage.status).toBe(302)
-    expect(nextPage.headers.get('location')).toBe('/login')
+    expect(nextPage.headers.get('location')).toBe('/login?next=%2Fsettings')
   })
 })

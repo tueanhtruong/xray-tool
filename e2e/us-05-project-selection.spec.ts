@@ -2,16 +2,13 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 import pg from 'pg'
 import { mockServicesUrl } from '../tests/support/env'
+import { signInWithOAuth } from './support'
 
 async function control(request: APIRequestContext, body: Record<string, unknown>) {
   await request.post(new URL('/__control', mockServicesUrl()).toString(), { data: body })
 }
 
-async function signIn(page: Page) {
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
-}
+const signIn = signInWithOAuth
 
 async function configureXray(page: Page) {
   await page.getByRole('combobox').click()

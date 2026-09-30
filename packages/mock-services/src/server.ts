@@ -33,6 +33,7 @@ export function createMockApp() {
   let xrayTestFailureStart = -1
   let xrayDelayMs = 0
   let projectSearchCount = 0
+  let writeRequestCount = 0
   let projectMode = 'valid'
   const router = createRouter()
     .get(
@@ -59,6 +60,7 @@ export function createMockApp() {
           resetXrayCounts?: unknown
           projectMode?: unknown
           resetProjectSearchCount?: unknown
+          resetWriteRequestCount?: unknown
         }
         if (typeof body.mode === 'string') mode = body.mode
         if (body.resetRefreshCount === true) refreshCount = 0
@@ -66,6 +68,7 @@ export function createMockApp() {
         if (typeof body.xrayMode === 'string') xrayMode = body.xrayMode
         if (typeof body.projectMode === 'string') projectMode = body.projectMode
         if (body.resetProjectSearchCount === true) projectSearchCount = 0
+        if (body.resetWriteRequestCount === true) writeRequestCount = 0
         if (typeof body.xrayUnauthorizedRemaining === 'number') {
           xrayUnauthorizedRemaining = Math.max(0, Math.floor(body.xrayUnauthorizedRemaining))
         }
@@ -107,6 +110,7 @@ export function createMockApp() {
           xrayDelayMs,
           projectMode,
           projectSearchCount,
+          writeRequestCount,
         }
       }),
     )
@@ -132,6 +136,7 @@ export function createMockApp() {
         xrayDelayMs,
         projectMode,
         projectSearchCount,
+        writeRequestCount,
       })),
     )
     .post(
@@ -465,6 +470,20 @@ export function createMockApp() {
       }),
     )
   const app = createApp()
+  // Counts requests that would modify remote data: non-GET Jira REST calls and Xray GraphQL
+  // mutations. OAuth token exchange and Xray authentication are not writes and are not counted.
+  app.use(
+    defineEventHandler(async (event) => {
+      const method = event.method
+      const path = event.path.split('?')[0] ?? ''
+      if (path.includes('/rest/api/') && method !== 'GET' && method !== 'HEAD') {
+        writeRequestCount += 1
+      } else if (path === '/xray/api/v2/graphql' && method === 'POST') {
+        const body = (await readBody(event).catch(() => undefined)) as { query?: unknown } | undefined
+        if (typeof body?.query === 'string' && /^\s*mutation\b/.test(body.query)) writeRequestCount += 1
+      }
+    }),
+  )
   app.use(router)
   return app
 }

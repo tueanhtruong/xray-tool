@@ -51,7 +51,7 @@ describe('full test pull', () => {
 
   beforeAll(async () => {
     mock = await startMockServices(mockUrl)
-    await control({ xrayMode: 'valid', xrayFolderMode: 'flat', xrayTestMode: 'five', xrayTestRevision: 0, xrayTestFailureStart: -1 })
+    await control({ xrayMode: 'valid', xrayFolderMode: 'flat', xrayTestMode: 'five', xrayTestRevision: 0, xrayTestFailureStart: -1, resetXrayCounts: true })
     server = await startBuiltServer({
       NUXT_DATABASE_URL: process.env.NUXT_DATABASE_URL_TEST,
       NUXT_INTEGRATION_TARGET: 'mock',

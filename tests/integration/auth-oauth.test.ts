@@ -70,9 +70,11 @@ describe('Jira OAuth sign-in', () => {
     expect(page.status).toBe(200)
     const api = await fetch(`${server.url}/api/auth/session`)
     expect(api.status).toBe(401)
-    const protectedPage = await fetch(server.url, { redirect: 'manual' })
+    const landing = await fetch(server.url, { redirect: 'manual' })
+    expect(landing.status).toBe(200)
+    const protectedPage = await fetch(`${server.url}/settings`, { redirect: 'manual' })
     expect(protectedPage.status).toBe(302)
-    expect(protectedPage.headers.get('location')).toBe('/login')
+    expect(protectedPage.headers.get('location')).toBe('/login?next=%2Fsettings')
   })
 
   it('requires OAuth settings at sign-in time and keeps them optional at startup', async () => {
@@ -147,7 +149,7 @@ describe('Jira OAuth sign-in', () => {
       redirect: 'manual',
     })
     expect(callback.status).toBe(302)
-    expect(callback.headers.get('location')).toBe('/')
+    expect(callback.headers.get('location')).toBe('/repository')
     const cookies = callback.headers.getSetCookie()
     const sessionCookie = cookies.find((value) => value.startsWith('nuxt-session='))
     expect(sessionCookie).toBeDefined()
@@ -206,8 +208,8 @@ describe('Jira OAuth sign-in', () => {
       body: JSON.stringify({ cloudId: 'fake-cloud-two' }),
       redirect: 'manual',
     })
-    expect(selected.status).toBe(303)
-    expect(selected.headers.get('location')).toBe('/')
+    expect(selected.status).toBe(200)
+    expect(await selected.json()).toEqual({ redirectTo: '/repository' })
     const workspaceCounts = await queryRows<{ cloudId: string; count: string }>(
       'SELECT "cloudId", count(*) FROM "Workspace" WHERE "cloudId" IN ($1, $2) GROUP BY "cloudId"',
       ['fake-cloud-two', 'fake-cloud-one'],
@@ -285,7 +287,7 @@ describe('Jira OAuth sign-in', () => {
       headers: { cookie: stateCookie },
       redirect: 'manual',
     })
-    expect(callback.headers.get('location')).toBe('/')
+    expect(callback.headers.get('location')).toBe('/repository')
     const after = await queryRows<{ users: string; workspaces: string }>(
       'SELECT (SELECT count(*) FROM "User") users, (SELECT count(*) FROM "Workspace" WHERE "cloudId" = $1) workspaces',
       ['fake-cloud-one'],

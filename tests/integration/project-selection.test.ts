@@ -73,6 +73,12 @@ describe('Jira/Xray project selection', () => {
     })
     await control({ mode: 'single', projectMode: 'valid', xrayMode: 'valid' })
     cookie = await oauthSignIn(server)
+    // Other files share this signed-in workspace; start from "no project selected".
+    await queryRows(
+      `UPDATE "Workspace" SET "jiraProjectId" = NULL, "jiraProjectKey" = NULL, "jiraProjectName" = NULL,
+       "projectReadyAt" = NULL, "testIssueTypeId" = NULL, "testIssueTypeName" = NULL, "projectStatuses" = NULL
+       WHERE "cloudId" = 'fake-cloud-one'`,
+    )
     const xray = await configureXray(server, cookie)
     if (xray.status !== 200) throw new Error(`Xray setup failed: ${await xray.text()}`)
   })
@@ -119,7 +125,7 @@ describe('Jira/Xray project selection', () => {
       }),
       redirect: 'manual',
     })
-    expect(response.status).toBe(303)
+    expect(response.status).toBe(200)
     const apiTokenCookie =
       response.headers
         .getSetCookie()
@@ -331,7 +337,7 @@ describe('Jira/Xray project selection', () => {
       redirect: 'manual',
     })
     expect(page.status).toBe(302)
-    expect(page.headers.get('location')).toBe('/')
+    expect(page.headers.get('location')).toBe('/settings')
     const api = await fetch(`${server.url}/api/repository/ready`, { headers: { cookie } })
     expect(api.status).toBe(409)
 

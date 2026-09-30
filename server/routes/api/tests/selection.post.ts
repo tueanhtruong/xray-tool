@@ -2,15 +2,10 @@ import { getHeader, getRequestURL, readBody } from 'h3'
 import { z } from 'zod'
 import { getXrayTestDetailsByKeys } from '../../../integrations/xray/client'
 import { fingerprintTestCase } from '../../../../shared/fingerprint'
+import { asRecord, isReadOnlyTestType, normalizeRemoteTest } from '../../../services/test-details'
 import { getAppSession } from '../../../utils/session'
 
 const bodySchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(100) })
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
 
 function parseRemoteDate(value: unknown): Date | null {
   if (typeof value !== 'string') return null
@@ -51,12 +46,8 @@ export default defineEventHandler(async (event) => {
   const details = await Promise.all(testCases.map(async (testCase) => {
     const remote = remoteByKey.get(testCase.key)
     if (!remote || remote.issueId !== testCase.issueId) throw httpError(409, `Xray identity changed for ${testCase.key}; pull the repository and retry.`)
-    const jira = asRecord(remote.jira)
-    const status = asRecord(jira.status)
-    const summary = typeof jira.summary === 'string' ? jira.summary : ''
-    const labels = Array.isArray(jira.labels) ? jira.labels.filter((label): label is string => typeof label === 'string') : []
-    const remoteStatus = typeof status.name === 'string' ? status.name : ''
-    if (!remote.testType?.name || !remoteStatus) throw httpError(502, `Xray returned incomplete details for ${testCase.key}.`)
+    const { summary, labels, status: remoteStatus, jira, testType: remoteTestType } = normalizeRemoteTest(remote)
+    if (!remoteTestType || !remoteStatus) throw httpError(502, `Xray returned incomplete details for ${testCase.key}.`)
     return {
       testCase,
       values: {
@@ -67,7 +58,7 @@ export default defineEventHandler(async (event) => {
         remoteUpdatedAt: parseRemoteDate(remote.lastModified) ?? parseRemoteDate(jira.updated),
         fingerprint: await fingerprintTestCase({ summary, labels, status: remoteStatus, gherkin: remote.gherkin }),
       },
-      testType: remote.testType.name,
+      testType: remoteTestType,
     }
   }))
 
@@ -108,6 +99,6 @@ export default defineEventHandler(async (event) => {
     key: testCase.key,
     testType,
     ...values,
-    readOnly: testType.toLowerCase() !== 'cucumber',
+    readOnly: isReadOnlyTestType(testType),
   })) }
 })

@@ -86,6 +86,12 @@ export default withNuxt(
     rules: { 'no-restricted-imports': ['error', sharedRestrictions] },
   },
   {
+    // User and Jira/Xray content is rendered as text; raw HTML injection is an error.
+    name: 'xray-tool/ui/no-v-html',
+    files: ['app/**/*.vue'],
+    rules: { 'vue/no-v-html': 'error' },
+  },
+  {
     // Server code logs through the structured logger (server/utils/logger.ts), which redacts
     // secrets. console.error/warn stay allowed for startup failures printed before it exists.
     name: 'xray-tool/server/no-console',

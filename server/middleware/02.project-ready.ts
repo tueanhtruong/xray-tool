@@ -7,7 +7,8 @@ export default defineEventHandler(async (event) => {
   const isRepositoryApi = pathname === '/api/repository' || pathname.startsWith('/api/repository/') ||
     pathname === '/api/pull' || pathname.startsWith('/api/pull/') ||
     pathname === '/api/folders' || pathname === '/api/tests' || pathname.startsWith('/api/tests/')
-  const isRepositoryPage = pathname === '/repository' || pathname.startsWith('/repository/')
+  const isRepositoryPage = pathname === '/repository' || pathname.startsWith('/repository/') ||
+    pathname === '/tests' || pathname.startsWith('/tests/')
   if (!isRepositoryPage && !isRepositoryApi) return
   if (isRepositoryApi) {
     const apiSession = await getAppSession(event)
@@ -22,5 +23,5 @@ export default defineEventHandler(async (event) => {
   if (!session) return
   const project = await getWorkspaceProjectReadiness(session.activeWorkspaceId)
   if (project?.projectReadyAt && project.jiraProjectId) return
-  return sendRedirect(event, '/', 302)
+  return sendRedirect(event, '/settings', 302)
 })

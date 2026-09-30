@@ -24,12 +24,24 @@ export async function isMockHealthy(baseUrl: string): Promise<boolean> {
   }
 }
 
+async function resetOAuthMode(baseUrl: string): Promise<void> {
+  await fetch(new URL('/__control', baseUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode: 'single' }),
+  })
+}
+
 /** Reuse a running mock at `baseUrl`, or start one and wait until `/health` responds. */
 export async function startMockServices(
   baseUrl: string,
   timeoutMs = 10_000,
 ): Promise<MockServicesHandle> {
-  if (await isMockHealthy(baseUrl)) return { started: false, stop: async () => {} }
+  if (await isMockHealthy(baseUrl)) {
+    // A reused mock keeps state from earlier files; OAuth scenarios must start from the default.
+    await resetOAuthMode(baseUrl)
+    return { started: false, stop: async () => {} }
+  }
 
   const port = new URL(baseUrl).port || '80'
   const child = spawn(process.execPath, [MOCK_ENTRY], {

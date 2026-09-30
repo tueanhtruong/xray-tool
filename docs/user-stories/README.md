@@ -40,7 +40,8 @@ stateDiagram-v2
 | [US-06](US-06-pull-folder-tree.md)          | Pull Xray folder tree into local cache                         | M2 Read       | 05                 |
 | [US-07](US-07-pull-test-cases.md)           | Pull test cases with last-synced snapshot                      | M2 Read       | 06                 |
 | [US-08](US-08-test-repository-browser.md)   | Browse the cached Test Repository                              | M2 Read       | 07                 |
-| [US-09](US-09-bulk-editor-grid.md)          | Bulk editor grid with local drafts                             | M3 Edit       | 08                 |
+| [US-08.1](US-08.1-ui-redesign.md)           | XrayBulk UI redesign (design system, shell, and screens)       | M2 Read       | 08                 |
+| [US-09](US-09-bulk-editor-grid.md)          | Bulk editor grid with local drafts                             | M3 Edit       | 08.1               |
 | [US-10](US-10-bulk-actions.md)              | Bulk actions across a selection                                | M3 Edit       | 09                 |
 | [US-11](US-11-gherkin-markdown-parser.md)   | Gherkin Markdown parser & serializer (library)                 | M3 Edit       | 09                 |
 | [US-12](US-12-gherkin-steps-editor.md)      | Gherkin steps editor                                           | M3 Edit       | 09, 11             |
@@ -57,7 +58,7 @@ stateDiagram-v2
 ```mermaid
 graph LR
   US00 --> US01 --> US02 --> US03 --> US05
-  US02 --> US04 --> US05 --> US06 --> US07 --> US08 --> US09
+  US02 --> US04 --> US05 --> US06 --> US07 --> US08 --> US081[US08.1] --> US09
   US09 --> US10 & US11
   US11 --> US12 & US13 & US14
   US07 --> US15 --> US16
@@ -65,7 +66,7 @@ graph LR
   US10 & US12 & US14 & US19 & US20 --> US21
 ```
 
-Recommended execution order is the ID order; it respects all dependencies. US-11 (parser) is sequenced after the editor grid so it is built right before its first consumers (US-12, US-13, US-14).
+Recommended execution order is the ID order (US-08.1 sits between US-08 and US-09); it respects all dependencies. US-08.1 is a UI-only insertion that applies the [refer/template](../../refer/template/UI-SPEC.md) design before the editing stories build on it. US-11 (parser) is sequenced after the editor grid so it is built right before its first consumers (US-12, US-13, US-14).
 
 ## Standard commands (established by US-00)
 

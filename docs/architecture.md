@@ -104,6 +104,29 @@ are SHA-256 of JSON containing trimmed summary, sorted labels, trimmed status, a
 CRLF/CR normalized to LF and surrounding whitespace trimmed. Folder and test-index queries are
 cache-only; detail and editor-selection flows are the only repository reads that call Xray.
 
+## UI routes and design system (US-08.1)
+
+| Route         | Screen                                             | Access                    |
+| ------------- | -------------------------------------------------- | ------------------------- |
+| `/`           | Landing                                            | public                    |
+| `/login`      | Login (OAuth / API token tabs)                     | public                    |
+| `/settings`   | Workspace setup (Jira, Xray, project, folder pull) | signed in                 |
+| `/repository` | Folder tree + test list                            | signed in + project ready |
+| `/tests/:key` | Test case page                                     | signed in + project ready |
+
+Protected pages redirect to `/login?next=<path>` (same-origin relative paths only, validated by
+`shared/ui/safe-next-path.ts`) and repository routes redirect to `/settings` until a project is
+ready. `next` survives the OAuth round trip in a signed, HttpOnly, 10-minute `login_next` cookie
+(`server/utils/oauth-cookies.ts`); after sign-in the destination is `next`, else `/repository`.
+OAuth site selection and API-token sign-in answer with JSON `{ redirectTo }`. A signed-in user
+opening `/login` is redirected. `GET /api/tests/by-key/:key` resolves a cached test by key for
+`/tests/:key` (fresh Xray details, nothing persisted, 404 for unknown keys). The app session is
+ID-only, so UI code detects sign-in with `session.userId` (see `useWorkspaceSession`), never
+`useUserSession().loggedIn`. Visual tokens (`--bg`, `--sf`, `--ink`,
+`--mute`, `--line`, `--brand`, `--soft`, `--ok`, `--warn`, `--bad`, `--add`, `--del`, `--code`) live
+in `app/assets/css/main.css` and feed the Nuxt UI theme; light/dark uses Nuxt UI color mode. The
+design reference is `refer/template`; decisions are in [0015](decisions/0015-ui-design-system-and-routes.md).
+
 ## Mock services (`packages/mock-services`)
 
 - `@xray-tool/mock-services` is an h3 1.x app run with `pnpm mock` on `MOCK_SERVICES_PORT` (default 4010).

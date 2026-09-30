@@ -2,6 +2,57 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-01 — US-08.1 UI redesign implemented (pending verify)
+
+**Done**
+
+- Implemented OpenSpec change `ui-redesign` (all 38 tasks): tokens + light/dark (Nuxt UI color mode), `AppHeader` shell and shared components, public landing, tabbed login, `/settings` (was `/`), two-pane `/repository` (ARIA tree, `TestList`, `SelectionBar`), read-only `/tests/:key`, `GET /api/tests/by-key/:key`, server guard with `/login?next=` and a signed `login_next` cookie through OAuth, API-token/site-selection JSON `{ redirectTo }`, signed-in `/login` bounce, `/editor` removed.
+- Mock write-request counter; `e2e/support` helpers; `vue/no-v-html` is an error.
+- Tests: `tests/unit/ui`, `route-guards` integration, `e2e/us-08-1-ui-redesign.spec.ts` (tokens, landing, login, redirects, repository, 375 px, axe in both themes, zero writes). Existing e2e specs migrated to the new routes.
+- Fixed latent test coupling found by the first full runs: `us-03` left an API-token connection that blocked later OAuth sign-ins; reused mock `mode` and `project-selection`/`pull-tests` state leaked between integration files (`startMockServices` now resets `mode`, `project-selection` resets its workspace, `pull-tests` resets counts).
+- `pnpm check`, `pnpm test:int` (96) and `pnpm test:e2e` (50) pass on the mock target.
+
+**In progress**
+
+- US-08.1 is `active`; `pnpm verify US-08.1` needs a committed, clean tree.
+
+**Next**
+
+- Commit `US-08.1: UI redesign`, run `pnpm verify US-08.1`, then archive the OpenSpec change `ui-redesign`.
+
+**Open questions**
+
+- `refer/template/` is still untracked: commit or gitignore it.
+- Playwright may leave a lingering process holding the terminal after a failing run; not investigated.
+
+## 2026-10-01 — US-08.1 UI redesign planned (no code)
+
+**Done**
+
+- Reviewed `refer/template/index.html` and `UI-SPEC.md` against the current app (`/` = workspace setup, unstyled `/repository`, `/editor` stub, `/repository` not server-guarded).
+- Added story [US-08.1](user-stories/US-08.1-ui-redesign.md) (design tokens + light/dark, shared shell, landing, tabbed login, `/settings`, two-pane repository, read-only `/tests/:key`) and `feature-list.json` entry (`not_started`, depends on US-08). US-09 now depends on US-08.1.
+- Drafted [ADR 0015](decisions/0015-ui-design-system-and-routes.md) (`proposed`): route map, Nuxt UI color mode instead of `[data-theme]`, `folder=<path>` kept, list columns limited to indexed fields.
+- Updated README backlog/graph, US-08 (superseded UI note), US-09, US-12, US-16, `architecture.md`, `conventions.md`, `testing.md`.
+
+**In progress**
+
+- Nothing. No story is `active`; US-08.1 is the next eligible story (lowest ID, US-08 passing).
+
+**Next**
+
+- Confirm ADR 0015, then activate US-08.1 and implement it. `refer/template/` is still untracked; commit it (or keep it local) before the implementation session.
+
+**Follow-up (same day)**
+
+- Planning gaps folded in (next-through-OAuth cookie, JSON API-token response, session detection, by-key API, mock write counter, `no-v-html` as error). ADR 0015 accepted. OpenSpec change `ui-redesign` holds proposal, specs, design, tasks (validated).
+- Decisions confirmed: Labels/Status columns deferred to US-09; single-test "Open in editor"; landing fetches the session only when signed in.
+
+**Open questions (resolved above, kept for history)**
+
+- Template shows Labels/Status columns, but US-07 deliberately does not cache them. ADR 0015 defers them to US-09; confirm.
+- Multi-select "Open N selected in editor" is reduced to single-test "Open in editor" (bulk edit moves to the grid in US-09/US-10); confirm.
+- Setup page moves from `/` to `/settings`, which changes many existing e2e specs' post-login URL.
+
 ## 2026-10-01 — US-06/07/08 Test Repository verification handoff
 
 **Done**

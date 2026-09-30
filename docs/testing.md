@@ -15,6 +15,13 @@ Three verification layers, run in this order: **static → runtime → end-to-en
   (or `pnpm check`) first. They fail with that instruction if `.output` is missing.
 - Shared helpers live in `tests/support/` (env loading, test DB guard, mock and server launchers).
 
+## UI checks
+
+UI stories assert layout and accessibility in Playwright: `@axe-core/playwright` scans (no
+serious/critical violations) in light and dark themes, a 375 px viewport check for page-level
+horizontal overflow, and keyboard-only operation of trees, tabs, and lists. Screenshot baselines
+are not used; assert computed design-token colors instead.
+
 ## Integration targets
 
 | Target                             | Talks to                                                  | Used by                                                    |

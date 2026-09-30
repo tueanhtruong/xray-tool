@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-08                                             |
+| Depends on | US-08.1                                           |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -20,8 +20,9 @@ Edits are **local drafts only**. Nothing is written to Xray until the diff-revie
 
 - Prisma model `TestCaseDraft` (testCase 1:1, nullable fields `summary`, `labels[]`, `status`, `gherkin`, `updatedAt`). A null field means "unchanged".
 - Draft rule: if every draft field equals the snapshot, the draft row is deleted (no phantom changes).
-- `/editor` page opened with a selection (from US-08) or a folder.
-- Grid (virtualized, 1,000 rows smooth) with columns: key, summary ✎, labels ✎ (chips), status ✎, folder, Gherkin preview (opens US-12 editor later; read-only here).
+- The grid lives in the `/repository` page built in [US-08.1](US-08.1-ui-redesign.md) (there is no separate `/editor` page), following the XrayBulk design tokens and [refer/template](../../refer/template/UI-SPEC.md) §5. Adds the header "N drafts" chip (slot reserved by US-08.1), the toolbar button "Review N changes" (disabled when N = 0; it navigates to the US-16 review page once that exists), the warning dot before drafted keys, and the footer note "Edits are saved as local drafts. Nothing is written to Xray until you review and sync."
+- Grid (virtualized, 1,000 rows smooth) with columns: select, key (link to `/tests/:key`), summary ✎, labels ✎ (chips), status ✎, folder, Gherkin preview (opens US-12 editor later; read-only here). Labels and status load with test details (the US-07 index does not cache them).
+- `/tests/:key` gains the editable details card (summary, status, labels, `Undo all`) using the same draft rules.
 - Status options = statuses available for the Test issue type (from US-05 metadata).
 - Keyboard: arrows move, Enter/F2 edit, Esc cancel, Tab next cell, Ctrl/Cmd+Z / Shift+Z undo/redo within the session.
 - Changed cells highlighted; row "Revert" button; toolbar badge "N tests changed".
@@ -39,7 +40,7 @@ Edits are **local drafts only**. Nothing is written to Xray until the diff-revie
 Feature: Bulk editor grid
 
   Scenario: Edit summary inline
-    Given I opened 3 tests in the editor
+    Given 3 tests are shown in the repository grid
     When I change the summary of ONEDS-14043 and press Enter
     Then the cell is highlighted as changed
     And a draft is saved for ONEDS-14043

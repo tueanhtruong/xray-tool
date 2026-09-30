@@ -1,16 +1,13 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { mockServicesUrl } from '../tests/support/env'
+import { signInWithOAuth } from './support'
 
 async function control(request: APIRequestContext, body: Record<string, unknown>) {
   await request.post(new URL('/__control', mockServicesUrl()).toString(), { data: body })
 }
 
-async function signIn(page: Page) {
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
-}
+const signIn = signInWithOAuth
 
 async function configureAndSelectProject(page: Page) {
   await page.getByRole('combobox').click()
@@ -37,8 +34,10 @@ test('pulls the nested Xray folder tree into the local cache', async ({ page, re
   expect(body.folders[0]?.folders[0]?.path).toBe('/Autocomplete/Focus')
   await page.getByTestId('repository-link').click()
   const folderTree = page.getByRole('navigation', { name: 'Test folders' })
-  await expect(folderTree.getByRole('button', { name: 'Expand Autocomplete' })).toHaveAttribute('aria-expanded', 'false')
-  await folderTree.getByRole('button', { name: 'Expand Autocomplete' }).focus()
-  await page.keyboard.press('Enter')
-  await expect(folderTree.getByRole('button', { name: 'Collapse Autocomplete' })).toHaveAttribute('aria-expanded', 'true')
+  const autocomplete = folderTree.getByRole('treeitem', { name: /^Autocomplete/ })
+  await expect(autocomplete).toHaveAttribute('aria-expanded', 'false')
+  await autocomplete.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(autocomplete).toHaveAttribute('aria-expanded', 'true')
+  await expect(folderTree.getByRole('treeitem', { name: /^Focus/ })).toBeVisible()
 })

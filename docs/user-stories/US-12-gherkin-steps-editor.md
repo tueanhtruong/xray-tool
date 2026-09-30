@@ -14,7 +14,7 @@ As a QA engineer, I want to edit a test case's Gherkin steps in a proper code ed
 
 **In**
 
-- Side panel/drawer opened from a grid row (and from the repository detail drawer via "Edit").
+- The "Gherkin steps" card on `/tests/:key` (US-08.1 layout), reachable from a grid row key; segmented control `Edit | Compare with Xray`; validation strip with `Line N: message` entries that move the cursor to that line.
 - Code editor (e.g. CodeMirror 6) with Gherkin highlighting, 2-space indentation, line numbers.
 - Keyword completion: `Given`, `When`, `Then`, `And`, `But`, `Examples:`, table pipes.
 - Live validation using the US-11 parser (wrapping steps in a synthetic `Feature/Scenario` for parsing); errors underlined with message and line.

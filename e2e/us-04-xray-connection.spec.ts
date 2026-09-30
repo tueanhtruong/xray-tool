@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 import { mockServicesUrl } from '../tests/support/env'
+import { signInWithOAuth } from './support'
 
 async function resetXrayMock(request: APIRequestContext) {
   await request.post(new URL('/__control', mockServicesUrl()).toString(), {
@@ -8,11 +9,7 @@ async function resetXrayMock(request: APIRequestContext) {
   })
 }
 
-async function signIn(page: import('@playwright/test').Page) {
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
-}
+const signIn = signInWithOAuth
 
 test('verifies and saves Xray credentials while exposing only connection metadata', async ({
   page,
@@ -47,9 +44,7 @@ test('verifies and saves Xray credentials while exposing only connection metadat
 
 test('shows credential rejection and keeps failed credentials out of the page', async ({ page, request }) => {
   await resetXrayMock(request)
-  await page.goto('/login')
-  await page.getByTestId('jira-login').click()
-  await expect(page).toHaveURL('/')
+  await signIn(page)
   await page.getByRole('combobox').click()
   await page.getByRole('option', { name: 'Global', exact: true }).click()
   await page.getByLabel('Xray client ID').fill('mock-xray-client-id')

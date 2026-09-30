@@ -14,7 +14,7 @@ As a QA engineer, I want to see every pending change as an explicit diff and cho
 
 **In**
 
-- `/review` page (also reachable from a toolbar badge "N changes").
+- `/review` page (also reachable from the repository toolbar button "Review N changes", added by US-09 to the US-08.1 toolbar; disabled when N = 0). Uses the US-08.1 design system and `/login?next=` route guard.
 - Summary header: tests to update, tests to create, fields changed.
 - Grouped list per test: key (or "New"), folder, changed fields; expand to see:
   - summary inline diff, label chips (+ green / − red), status before → after,

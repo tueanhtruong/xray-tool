@@ -1,70 +1,84 @@
 <script setup lang="ts">
-interface Folder { path: string; name: string; parentPath: string | null; remoteTestsCount: number; folders: Folder[] }
-interface RepositoryTest {
-  id: string
-  key: string
-  summary: string
-  folderPath: string | null
-  remoteDeletedAt: string | null
-  issueId: string
+import type { FolderNode } from '~/components/FolderTree.vue'
+import type { RepositoryTest } from '~/components/TestList.vue'
+
+interface Page {
+  values: RepositoryTest[]
+  total: number
+  limit: number
+  offset: number
+  nextOffset: number | null
 }
-interface RepositoryDetail extends RepositoryTest {
-  labels: string[]
-  status: string
-  testType: string
-  gherkin: string | null
-  readOnly: boolean
-}
-interface Page { values: RepositoryTest[]; total: number; limit: number; offset: number; nextOffset: number | null }
+
+const PAGE_SIZE = 50
 
 const route = useRoute()
 const router = useRouter()
-const { data: session } = await useFetch<{ workspace: { id: string; siteUrl: string; jiraProjectKey: string | null } }>('/api/auth/session')
-const selectedFolder = computed(() => typeof route.query.folder === 'string' ? route.query.folder : '')
-const search = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
+const { workspace } = useWorkspaceSession()
+
+const selectedFolder = computed(() => (typeof route.query.folder === 'string' ? route.query.folder : ''))
+const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 const includeDescendants = computed(() => route.query.descendants === 'true')
 const offset = computed(() => Number(route.query.offset ?? 0) || 0)
-const folderQuery = await useFetch<{ folders: Folder[]; foldersPulledAt: string | null }>('/api/folders')
+
+const folderQuery = await useFetch<{ folders: FolderNode[]; foldersPulledAt: string | null }>('/api/folders')
 const filters = computed(() => ({
   folder: selectedFolder.value || undefined,
   q: search.value || undefined,
   includeDescendants: includeDescendants.value ? 'true' : 'false',
   offset: String(offset.value),
-  limit: '50',
+  limit: String(PAGE_SIZE),
 }))
-const testQuery = await useFetch<Page>('/api/tests', { query: filters, watch: [filters] })
-const selected = ref<string[]>([])
-const detail = ref<RepositoryDetail | null>(null)
-const detailLoading = ref(false)
-const detailError = ref('')
-const selecting = ref(false)
-const pullError = ref('')
-const pullMessage = ref('')
-const pulling = ref(false)
-const pullStatus = ref<{ state: string; fetched: number; total: number | null; folders: number | null; message?: string; requestId?: string }>({ state: 'idle', fetched: 0, total: null, folders: null })
-let poll: ReturnType<typeof setInterval> | undefined
-const expanded = ref<string[]>([])
+const testQuery = useFetch<Page>('/api/tests', { query: filters, watch: [filters], lazy: true })
 
-function updateQuery(patch: Record<string, string | number | boolean | undefined>) {
-  const entries = Object.entries({ ...route.query, ...patch, offset: undefined })
-    .filter(([, value]) => value !== undefined && value !== '')
-  void router.push({ query: Object.fromEntries(entries) })
+const tests = computed(() => testQuery.data.value?.values ?? [])
+const total = computed(() => testQuery.data.value?.total ?? 0)
+const neverPulled = computed(() => !folderQuery.data.value?.foldersPulledAt)
+const linkQuery = computed(() => {
+  const query: Record<string, string> = {}
+  if (selectedFolder.value) query.folder = selectedFolder.value
+  if (search.value) query.q = search.value
+  if (includeDescendants.value) query.descendants = 'true'
+  return query
+})
+
+const searchInput = ref(search.value)
+watch(search, (value) => {
+  if (value !== searchInput.value) searchInput.value = value
+})
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+function onSearchInput(value: string) {
+  searchInput.value = value
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => updateQuery({ q: value.trim() || undefined }), 250)
 }
+onBeforeUnmount(() => clearTimeout(searchTimer))
+
+function updateQuery(patch: Record<string, string | number | undefined>) {
+  const entries = Object.entries({ ...route.query, ...patch, offset: patch.offset })
+    .filter(([, value]) => value !== undefined && value !== '')
+  void router.push({ query: Object.fromEntries(entries) as Record<string, string> })
+}
+
+// --- folder tree state (expansion is remembered per workspace)
+const expanded = ref<string[]>([])
+const storageKey = computed(() => `repository-folders:${workspace.value?.id}`)
 
 function toggleFolder(path: string) {
   expanded.value = expanded.value.includes(path)
     ? expanded.value.filter((item) => item !== path)
     : [...expanded.value, path]
-  if (session.value?.workspace.id) localStorage.setItem(`repository-folders:${session.value.workspace.id}`, JSON.stringify(expanded.value))
+  localStorage.setItem(storageKey.value, JSON.stringify(expanded.value))
 }
 
 function chooseFolder(path: string) {
   updateQuery({ folder: path === '/' ? undefined : path })
 }
 
-async function refreshStatus() {
-  pullStatus.value = await $fetch<{ state: string; fetched: number; total: number | null; folders: number | null; message?: string; requestId?: string }>('/api/pull/status')
-}
+// --- pull
+const pull = useRepositoryPull(async () => {
+  await Promise.all([folderQuery.refresh(), testQuery.refresh()])
+})
 
 function relativePullTime(value: string | null | undefined): string {
   if (!value) return 'never'
@@ -77,154 +91,188 @@ function relativePullTime(value: string | null | undefined): string {
   return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(-Math.round(elapsedSeconds / size), unit)
 }
 
-async function startPull() {
-  pullError.value = ''
-  pullMessage.value = ''
-  pulling.value = true
-  try {
-    await $fetch('/api/pull', { method: 'POST' })
-    await refreshStatus()
-    poll = setInterval(async () => {
-      await refreshStatus()
-      if (pullStatus.value.state !== 'running') {
-        if (poll) clearInterval(poll)
-        poll = undefined
-        pulling.value = false
-        if (pullStatus.value.state === 'succeeded') {
-          pullMessage.value = pullStatus.value.message ?? 'Pull completed.'
-          await Promise.all([folderQuery.refresh(), testQuery.refresh()])
-        } else if (pullStatus.value.state === 'failed') pullError.value = pullStatus.value.message ?? 'Pull failed.'
-      }
-    }, 500)
-  } catch (error) {
-    pulling.value = false
-    pullError.value = error && typeof error === 'object' && 'data' in error && error.data &&
-      typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
-      ? error.data.message
-      : 'Pull could not be started. Try again.'
-  }
-}
+// --- selection
+const selected = ref<string[]>([])
+const opening = ref(false)
+const openError = ref('')
 
 function toggleSelected(id: string) {
-  selected.value = selected.value.includes(id) ? selected.value.filter((item) => item !== id) : [...selected.value, id]
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter((item) => item !== id)
+    : [...selected.value, id]
 }
 
-async function openTest(testCase: RepositoryTest) {
-  detail.value = null
-  detailError.value = ''
-  detailLoading.value = true
-  try {
-    detail.value = await $fetch<RepositoryDetail>(`/api/tests/${encodeURIComponent(testCase.id)}`)
-  } catch {
-    detailError.value = 'Test details could not be loaded from Xray. Try again.'
-  } finally {
-    detailLoading.value = false
-  }
+function toggleAll() {
+  const visible = tests.value.map((test) => test.id)
+  const all = visible.length > 0 && visible.every((id) => selected.value.includes(id))
+  selected.value = all
+    ? selected.value.filter((id) => !visible.includes(id))
+    : [...new Set([...selected.value, ...visible])]
 }
 
-async function openSelected() {
-  selecting.value = true
-  pullError.value = ''
+async function openInEditor() {
+  if (selected.value.length !== 1) return
+  const id = selected.value[0]!
+  const test = tests.value.find((item) => item.id === id)
+  if (!test) return
+  opening.value = true
+  openError.value = ''
   try {
-    await $fetch('/api/tests/selection', { method: 'POST', body: { ids: selected.value } })
-    await navigateTo({ path: '/editor', query: { ids: selected.value.join(',') } })
+    await $fetch('/api/tests/selection', { method: 'POST', body: { ids: [id] } })
+    await navigateTo({ path: `/tests/${encodeURIComponent(test.key)}`, query: linkQuery.value })
   } catch (error) {
-    pullError.value = error && typeof error === 'object' && 'data' in error && error.data &&
+    openError.value =
+      error && typeof error === 'object' && 'data' in error && error.data &&
       typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
-      ? error.data.message
-      : 'Selected tests could not be loaded from Xray. Try again.'
+        ? error.data.message
+        : 'The selected test could not be loaded from Xray. Try again.'
   } finally {
-    selecting.value = false
+    opening.value = false
   }
-}
-
-function jiraIssueUrl(key: string) {
-  const siteUrl = session.value?.workspace.siteUrl
-  return siteUrl ? `${siteUrl.replace(/\/$/, '')}/browse/${encodeURIComponent(key)}` : '#'
 }
 
 onMounted(async () => {
   try {
-    const raw = localStorage.getItem(`repository-folders:${session.value?.workspace.id}`)
+    const raw = localStorage.getItem(storageKey.value)
     if (raw) expanded.value = JSON.parse(raw) as string[]
   } catch {
     expanded.value = []
   }
-  await refreshStatus()
+  await pull.resume()
 })
-onBeforeUnmount(() => { if (poll) clearInterval(poll) })
-useHead({ title: 'Test Repository' })
+
+useHead({ title: 'Repository · XrayBulk' })
 </script>
 
 <template>
-  <UContainer class="py-8" data-testid="repository">
-    <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-3xl font-semibold">Test Repository</h1>
-        <p class="text-muted">{{ session?.workspace.jiraProjectKey }} · Last pulled {{ relativePullTime(folderQuery.data.value?.foldersPulledAt) }}</p>
-      </div>
-      <UButton color="neutral" variant="outline" :loading="pulling" data-testid="pull-from-xray" @click="startPull">Pull from Xray</UButton>
-    </header>
-    <p v-if="pullError" role="alert" class="mb-3 border-2 border-red-800 bg-red-50 p-3 font-medium text-red-950" data-testid="pull-error">{{ pullError }}<span v-if="pullStatus.requestId"> Request ID: {{ pullStatus.requestId }}</span></p>
-    <p v-if="pullMessage" role="status" class="mb-3 border-2 border-green-800 bg-green-50 p-3 font-medium text-green-950" data-testid="pull-success">{{ pullMessage }}</p>
-    <p v-if="pulling" role="status" data-testid="pull-progress">Pulling {{ pullStatus.fetched }} / {{ pullStatus.total ?? '?' }} tests…</p>
-    <p v-if="!folderQuery.data.value?.foldersPulledAt" class="my-4" data-testid="never-pulled">Pull from Xray to load this repository.</p>
-    <div class="grid gap-6 lg:grid-cols-[minmax(16rem,1fr)_3fr]">
-      <nav aria-label="Test folders" class="rounded border p-3">
-        <button class="block w-full rounded px-2 py-1 text-left" :aria-current="!selectedFolder ? 'page' : undefined" @click="chooseFolder('/')">All folders</button>
-        <ul>
-          <RepositoryFolderNode
-            v-for="folder in folderQuery.data.value?.folders ?? []"
-            :key="folder.path"
-            :folder="folder"
-            :selected-path="selectedFolder"
-            :expanded-paths="expanded"
-            @toggle="toggleFolder"
-            @select="chooseFolder"
+  <div
+    class="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 min-[800px]:grid-cols-[260px_1fr]"
+    data-testid="repository"
+  >
+    <aside class="overflow-auto border-b border-default bg-elevated p-3 min-[800px]:border-b-0 min-[800px]:border-r">
+      <FolderTree
+        :folders="folderQuery.data.value?.folders ?? []"
+        :selected-path="selectedFolder"
+        :expanded-paths="expanded"
+        @toggle="toggleFolder"
+        @select="chooseFolder"
+      />
+      <button
+        type="button"
+        class="mx-2 mt-3 rounded-lg border border-default bg-elevated px-3 py-1 text-xs hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
+        :disabled="pull.pulling.value"
+        data-testid="pull-from-xray"
+        @click="pull.start"
+      >
+        ↻ Pull from Xray
+      </button>
+    </aside>
+
+    <div class="min-w-0 p-4 min-[800px]:px-5">
+      <header class="mb-3 flex flex-wrap items-baseline gap-x-3">
+        <h1 class="text-lg font-semibold text-highlighted">Test repository</h1>
+        <p class="text-muted">
+          {{ workspace?.jiraProjectKey }} · Last pulled {{ relativePullTime(folderQuery.data.value?.foldersPulledAt) }}
+        </p>
+      </header>
+
+      <ErrorBanner
+        v-if="pull.error.value"
+        class="mb-3"
+        :message="`${pull.error.value}${pull.status.value.requestId ? ` Request ID: ${pull.status.value.requestId}` : ''}`"
+        data-testid="pull-error"
+      />
+      <p v-if="pull.message.value" role="status" class="mb-3 font-medium text-(--ok)" data-testid="pull-success">
+        {{ pull.message.value }}
+      </p>
+      <p v-if="pull.pulling.value" role="status" class="mb-3" data-testid="pull-progress">
+        Pulling {{ pull.status.value.fetched }} / {{ pull.status.value.total ?? '?' }} tests…
+      </p>
+      <ErrorBanner v-if="openError" class="mb-3" :message="openError" />
+
+      <PageCard v-if="neverPulled" data-testid="never-pulled">
+        <EmptyState
+          title="This repository has not been pulled yet"
+          description="Pull from Xray to load this project's folders and tests."
+        >
+          <button
+            type="button"
+            class="rounded-lg bg-primary px-4 py-2 font-medium text-inverted hover:opacity-90 disabled:opacity-45"
+            :disabled="pull.pulling.value"
+            data-testid="pull-cta"
+            @click="pull.start"
+          >
+            Pull from Xray
+          </button>
+        </EmptyState>
+      </PageCard>
+
+      <template v-else>
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+          <input
+            :value="searchInput"
+            type="search"
+            class="w-full max-w-[280px] rounded-lg border border-default bg-elevated px-3 py-1.5"
+            aria-label="Search tests"
+            placeholder="Search key or summary…"
+            @input="onSearchInput(($event.target as HTMLInputElement).value)"
           />
-        </ul>
-      </nav>
-      <section aria-label="Test cases" class="min-w-0">
-        <div class="mb-3 grid gap-2 md:grid-cols-4">
-          <UInput :model-value="search" aria-label="Search tests" placeholder="Search key or name" @update:model-value="(value) => updateQuery({ q: String(value) })" />
+          <span class="text-muted" data-testid="result-count">{{ total }} tests</span>
+          <label class="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              class="size-4 accent-(--brand)"
+              :checked="includeDescendants"
+              @change="updateQuery({ descendants: ($event.target as HTMLInputElement).checked ? 'true' : undefined })"
+            />
+            Include subfolders
+          </label>
         </div>
-        <label class="mb-3 inline-flex items-center gap-2"><input type="checkbox" :checked="includeDescendants" @change="(event) => updateQuery({ descendants: (event.target as HTMLInputElement).checked ? 'true' : undefined })"> Include subfolders</label>
-        <p v-if="testQuery.data.value?.total === 0 && !selectedFolder && !search" class="mb-3">No tests in this repository.</p>
-        <p v-if="testQuery.data.value?.total === 0 && (selectedFolder || search)" class="mb-3">No tests match this selection.</p>
-        <p v-if="testQuery.error.value" role="alert" class="border-2 border-red-800 bg-red-50 p-3 font-medium text-red-950">Tests could not be loaded.</p>
-        <div class="overflow-x-auto rounded border">
-          <table class="w-full text-left">
-            <thead><tr><th class="p-2">Select</th><th class="p-2">Key</th><th class="p-2">Name</th><th class="p-2">Folder</th></tr></thead>
-            <tbody>
-              <tr v-for="testCase in testQuery.data.value?.values ?? []" :key="testCase.id" class="border-t">
-                <td class="p-2"><input type="checkbox" :aria-label="`Select ${testCase.key}`" :checked="selected.includes(testCase.id)" @change="toggleSelected(testCase.id)"></td>
-                <td class="p-2"><button class="underline" @click="openTest(testCase)">{{ testCase.key }}</button><span v-if="testCase.remoteDeletedAt" class="ml-1 font-semibold text-[#b91c1c]">Remote deleted</span></td>
-                <td class="p-2">{{ testCase.summary }}</td>
-                <td class="p-2">{{ testCase.folderPath ?? '/' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-3 flex items-center justify-between">
-          <span>{{ testQuery.data.value?.total ?? 0 }} tests</span>
-          <div class="flex gap-2"><UButton variant="outline" :disabled="offset === 0" @click="updateQuery({ offset: Math.max(0, offset - 50) })">Previous</UButton><UButton variant="outline" :disabled="testQuery.data.value?.nextOffset === null || testQuery.data.value?.nextOffset === undefined" @click="updateQuery({ offset: testQuery.data.value?.nextOffset ?? offset })">Next</UButton></div>
-        </div>
-        <UButton v-if="selected.length" class="mt-3" :loading="selecting" data-testid="open-selected" @click="openSelected">Open {{ selected.length }} selected in editor</UButton>
-      </section>
-    </div>
-    <UModal :open="Boolean(detail || detailLoading || detailError)" @update:open="(open) => { if (!open) { detail = null; detailError = '' } }">
-      <template #content>
-        <section v-if="detailLoading" class="space-y-3 p-6" aria-label="Test details" role="status">Loading current Xray details…</section>
-        <section v-else-if="detailError" class="space-y-3 p-6" aria-label="Test details" role="alert">{{ detailError }}</section>
-        <section v-else-if="detail" class="space-y-3 p-6" aria-label="Test details">
-          <h2 class="text-xl font-semibold">{{ detail.key }} · {{ detail.summary }}</h2>
-          <p>Labels: {{ detail.labels.join(', ') || 'None' }}</p><p>Status: {{ detail.status }}</p>
-          <p v-if="detail.readOnly" class="text-muted">Read-only {{ detail.testType }} test</p>
-          <GherkinCode :source="detail.gherkin ?? 'No Gherkin definition'" />
-          <a :href="jiraIssueUrl(detail.key)" target="_blank" rel="noopener noreferrer">Open in Jira</a>
-          <UButton variant="outline" @click="detail = null">Close</UButton>
-        </section>
+
+        <SelectionBar
+          :count="selected.length"
+          :opening="opening"
+          @clear="selected = []"
+          @open="openInEditor"
+        />
+
+        <LoadingSkeleton v-if="testQuery.status.value === 'pending' && !testQuery.data.value" label="Loading tests" />
+        <ErrorBanner
+          v-else-if="testQuery.error.value"
+          title="Tests could not be loaded."
+          message="Check your connection and try again."
+          retryable
+          @retry="testQuery.refresh()"
+        />
+        <PageCard v-else-if="total === 0">
+          <EmptyState
+            :title="search ? 'No tests match this search' : selectedFolder ? 'This folder has no tests' : 'No tests in this repository'"
+            :description="search ? 'Try a different key or summary.' : undefined"
+          />
+        </PageCard>
+        <template v-else>
+          <TestList
+            :tests="tests"
+            :selected-ids="selected"
+            :link-query="linkQuery"
+            :busy="testQuery.status.value === 'pending'"
+            @toggle="toggleSelected"
+            @toggle-all="toggleAll"
+          />
+          <div class="mt-3 flex items-center justify-between gap-2">
+            <span class="text-muted">{{ total }} tests</span>
+            <div class="flex gap-2">
+              <UButton variant="outline" color="neutral" :disabled="offset === 0" @click="updateQuery({ offset: Math.max(0, offset - PAGE_SIZE) })">Previous</UButton>
+              <UButton
+                variant="outline"
+                color="neutral"
+                :disabled="testQuery.data.value?.nextOffset === null || testQuery.data.value?.nextOffset === undefined"
+                @click="updateQuery({ offset: testQuery.data.value?.nextOffset ?? offset })"
+              >Next</UButton>
+            </div>
+          </div>
+        </template>
       </template>
-    </UModal>
-  </UContainer>
+    </div>
+  </div>
 </template>

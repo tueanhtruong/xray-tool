@@ -1,4 +1,4 @@
-import { createError, readBody, sendRedirect } from 'h3'
+import { createError, readBody } from 'h3'
 import { z } from 'zod'
 import { completePendingGrant } from '../../../../services/jira-oauth'
 import { clearPendingFlow, readPendingFlow } from '../../../../utils/oauth-cookies'
@@ -32,5 +32,5 @@ export default defineEventHandler(async (event) => {
   }
   clearPendingFlow(event)
   await setAppSession(event, session)
-  return sendRedirect(event, '/', 303)
+  return { redirectTo: resolvePostLoginPath(event) }
 })

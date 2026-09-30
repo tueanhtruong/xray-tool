@@ -88,3 +88,15 @@ describe('no console output in server code', () => {
     expect((result?.messages ?? []).filter((m) => m.ruleId === 'no-console')).toEqual([])
   })
 })
+
+describe('no raw HTML rendering in app components', () => {
+  it('rejects v-html as an error', async () => {
+    const [result] = await eslint.lintText(
+      '<template><div v-html="x" /></template>\n<script setup lang="ts">\nconst x = \'a\'\n</script>\n',
+      { filePath: 'app/components/HtmlSample.vue' },
+    )
+    const messages = (result?.messages ?? []).filter((m) => m.ruleId === 'vue/no-v-html')
+    expect(messages.length).toBeGreaterThan(0)
+    expect(messages.every((m) => m.severity === 2)).toBe(true)
+  })
+})

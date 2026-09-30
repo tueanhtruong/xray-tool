@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
     if (grant.sites.length === 1) {
       const session = await persistSingleSiteGrant(grant)
       await setAppSession(event, session)
-      return sendRedirect(event, '/', 302)
+      return sendRedirect(event, resolvePostLoginPath(event), 302)
     }
     const pendingId = await createPendingGrant(grant)
     setPendingFlow(event, pendingId)
