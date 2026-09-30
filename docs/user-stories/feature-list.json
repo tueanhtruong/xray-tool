@@ -207,7 +207,7 @@
         "pnpm test:int tests/integration/project-selection.test.ts",
         "pnpm test:e2e e2e/us-05-project-selection.spec.ts"
       ],
-      "state": "blocked",
+      "state": "active",
       "evidence": null
     },
     {

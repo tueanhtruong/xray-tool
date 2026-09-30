@@ -36,9 +36,12 @@ async function oauthSignIn(server: RunningServer): Promise<string> {
     headers: { cookie: stateCookie },
     redirect: 'manual',
   })
-  return callback.headers.getSetCookie()
-    .find((cookie) => cookie.startsWith('nuxt-session='))
-    ?.split(';', 1)[0] ?? ''
+  return (
+    callback.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith('nuxt-session='))
+      ?.split(';', 1)[0] ?? ''
+  )
 }
 
 async function configureXray(server: RunningServer, cookie: string) {
@@ -99,7 +102,9 @@ describe('Jira/Xray project selection', () => {
       headers: { cookie },
     })
     expect((await next.json()).values).toEqual([{ id: '10002', key: 'DEMO', name: 'Demo Project' }])
-    const invalid = await fetch(`${server.url}/api/jira/projects?startAt=-1`, { headers: { cookie } })
+    const invalid = await fetch(`${server.url}/api/jira/projects?startAt=-1`, {
+      headers: { cookie },
+    })
     expect(invalid.status).toBe(400)
   })
 
@@ -115,9 +120,11 @@ describe('Jira/Xray project selection', () => {
       redirect: 'manual',
     })
     expect(response.status).toBe(303)
-    const apiTokenCookie = response.headers.getSetCookie()
-      .find((entry) => entry.startsWith('nuxt-session='))
-      ?.split(';', 1)[0] ?? ''
+    const apiTokenCookie =
+      response.headers
+        .getSetCookie()
+        .find((entry) => entry.startsWith('nuxt-session='))
+        ?.split(';', 1)[0] ?? ''
     const projects = await fetch(`${server.url}/api/jira/projects?query=ONEDS`, {
       headers: { cookie: apiTokenCookie },
     })
@@ -128,11 +135,12 @@ describe('Jira/Xray project selection', () => {
   })
 
   it('stores a ready project only after Jira and Xray checks and preserves it on failures', async () => {
-    const select = async (projectId: string, confirmChange = false) => fetch(`${server.url}/api/project`, {
-      method: 'PUT',
-      headers: { cookie, origin: server.url, 'content-type': 'application/json' },
-      body: JSON.stringify({ projectId, confirmChange }),
-    })
+    const select = async (projectId: string, confirmChange = false) =>
+      fetch(`${server.url}/api/project`, {
+        method: 'PUT',
+        headers: { cookie, origin: server.url, 'content-type': 'application/json' },
+        body: JSON.stringify({ projectId, confirmChange }),
+      })
 
     const noTest = await control({ projectMode: 'no-test' })
     expect(noTest.status).toBe(200)
@@ -143,7 +151,17 @@ describe('Jira/Xray project selection', () => {
 
     const denied = await select('999')
     expect(denied.status).toBe(403)
-    expect(await denied.text()).toContain("Xray cannot access project ABC. Check the API key's project permissions")
+    expect(await denied.text()).toContain(
+      "Xray cannot access project ABC. Check the API key's project permissions",
+    )
+
+    const session = await fetch(`${server.url}/api/auth/session`, { headers: { cookie } })
+    const sessionBody = (await session.json()) as { workspace: { id: string } }
+    const workspaceId = sessionBody.workspace.id
+    await queryRows(
+      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
+      ['folder-before-first-selection', workspaceId, '777', '/unrelated', 'unrelated'],
+    )
 
     const selected = await select('10001')
     expect(selected.status, await selected.clone().text()).toBe(200)
@@ -162,9 +180,132 @@ describe('Jira/Xray project selection', () => {
       jiraProjectKey: 'ONEDS',
       jiraProjectId: '10001',
       testIssueTypeName: 'Test',
-      projectStatuses: [{ id: '1', name: 'To Do' }, { id: '2', name: 'Ready' }],
+      projectStatuses: [
+        { id: '1', name: 'To Do' },
+        { id: '2', name: 'Ready' },
+      ],
     })
     expect(saved[0]?.projectReadyAt).toBeTruthy()
+
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-before-first-selection']),
+    ).toHaveLength(1)
+    const workspaceRows = await queryRows<{ ownerId: string }>(
+      'SELECT "ownerId" FROM "Workspace" WHERE id = $1',
+      [workspaceId],
+    )
+    const workspace = workspaceRows[0]
+    expect(workspace).toBeTruthy()
+
+    // A draft in this workspace blocks replacement and preserves both the cache and selection.
+    await queryRows(
+      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
+      ['folder-old-project', workspaceId, '10001', '/old', 'old'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, now())',
+      ['test-old-project', workspaceId, '10001', 'issue-old', 'ONEDS-1', 'Cucumber'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCaseSnapshot" (id, "testCaseId", summary, labels, status, fingerprint) VALUES ($1, $2, $3, $4, $5, $6)',
+      ['snapshot-old-project', 'test-old-project', 'Old summary', [], 'Ready', 'old-fingerprint'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCaseDraft" (id, "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, now())',
+      ['draft-old-project', 'test-old-project', 'Changed summary'],
+    )
+    const blocked = await select('10002', true)
+    expect(blocked.status).toBe(409)
+    expect(await blocked.text()).toContain('Sync or discard unsynced drafts')
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-old-project']),
+    ).toHaveLength(1)
+    expect(
+      await queryRows('SELECT "jiraProjectId" FROM "Workspace" WHERE id = $1', [workspaceId]),
+    ).toEqual([{ jiraProjectId: '10001' }])
+
+    // Drafts and caches in another workspace are isolated from this switch.
+    const otherWorkspaceId = 'workspace-other-project'
+    await queryRows(
+      'INSERT INTO "Workspace" (id, "ownerId", "siteOrigin", "siteUrl", name, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, now(), now())',
+      [
+        otherWorkspaceId,
+        workspace!.ownerId,
+        'https://other.atlassian.net',
+        'https://other.atlassian.net',
+        'Other workspace',
+      ],
+    )
+    await queryRows(
+      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
+      ['folder-other-project', otherWorkspaceId, '10001', '/other', 'other'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, now())',
+      ['test-other-project', otherWorkspaceId, '10001', 'issue-other', 'ONEDS-2', 'Cucumber'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCaseDraft" (id, "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, now())',
+      ['draft-other-project', 'test-other-project', 'Other changed summary'],
+    )
+    await queryRows('DELETE FROM "TestCaseDraft" WHERE id = $1', ['draft-old-project'])
+    const switched = await select('10002', true)
+    expect(switched.status, await switched.clone().text()).toBe(200)
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-old-project']),
+    ).toHaveLength(0)
+    expect(
+      await queryRows('SELECT id FROM "TestCase" WHERE id = $1', ['test-old-project']),
+    ).toHaveLength(0)
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-other-project']),
+    ).toHaveLength(1)
+    expect(
+      await queryRows('SELECT id FROM "TestCaseDraft" WHERE id = $1', ['draft-other-project']),
+    ).toHaveLength(1)
+
+    // A readiness failure preserves cache for the currently selected project.
+    await queryRows(
+      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
+      ['folder-current-project', workspaceId, '10002', '/current', 'current'],
+    )
+    const failedProbeSwitch = await select('999', true)
+    expect(failedProbeSwitch.status).toBe(403)
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-current-project']),
+    ).toHaveLength(1)
+
+    // Force the final workspace update to fail after cleanup; the transaction must roll back.
+    await queryRows(`CREATE FUNCTION reject_project_switch() RETURNS trigger AS $$
+      BEGIN
+        IF NEW."jiraProjectId" = '10001' THEN RAISE EXCEPTION 'forced update failure'; END IF;
+        RETURN NEW;
+      END;
+    $$ LANGUAGE plpgsql`)
+    await queryRows(
+      'CREATE TRIGGER reject_project_switch BEFORE UPDATE ON "Workspace" FOR EACH ROW EXECUTE FUNCTION reject_project_switch()',
+    )
+    let failedPersistence: Response
+    try {
+      failedPersistence = await select('10001', true)
+    } finally {
+      await queryRows('DROP TRIGGER reject_project_switch ON "Workspace"')
+      await queryRows('DROP FUNCTION reject_project_switch()')
+    }
+    expect(failedPersistence!.status).toBe(500)
+    expect(
+      await queryRows('SELECT "jiraProjectId" FROM "Workspace" WHERE id = $1', [workspaceId]),
+    ).toEqual([{ jiraProjectId: '10002' }])
+    expect(
+      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-current-project']),
+    ).toHaveLength(1)
+
+    // Return the shared fixture workspace to its original project for later tests.
+    const restored = await select('10001', true)
+    expect(restored.status, await restored.clone().text()).toBe(200)
+    await queryRows('DELETE FROM "Workspace" WHERE id = $1', [otherWorkspaceId])
+    await queryRows('DELETE FROM "Folder" WHERE id = $1', ['folder-current-project'])
+    await queryRows('DELETE FROM "Folder" WHERE id = $1', ['folder-before-first-selection'])
 
     const unconfirmed = await select('10002')
     expect(unconfirmed.status).toBe(409)
@@ -180,15 +321,22 @@ describe('Jira/Xray project selection', () => {
     const rows = await queryRows<{ id: string }>(
       'SELECT id FROM "Workspace" WHERE "jiraProjectKey" = \'ONEDS\' LIMIT 1',
     )
-    const workspaceId = rows[0]?.id
-    expect(workspaceId).toBeTruthy()
-    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = NULL WHERE id = $1', [workspaceId])
-    const page = await fetch(`${server.url}/repository`, { headers: { cookie }, redirect: 'manual' })
+    const unreadyWorkspaceId = rows[0]?.id
+    expect(unreadyWorkspaceId).toBeTruthy()
+    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = NULL WHERE id = $1', [
+      unreadyWorkspaceId,
+    ])
+    const page = await fetch(`${server.url}/repository`, {
+      headers: { cookie },
+      redirect: 'manual',
+    })
     expect(page.status).toBe(302)
     expect(page.headers.get('location')).toBe('/')
     const api = await fetch(`${server.url}/api/repository/ready`, { headers: { cookie } })
     expect(api.status).toBe(409)
 
-    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = now() WHERE id = $1', [workspaceId])
+    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = now() WHERE id = $1', [
+      unreadyWorkspaceId,
+    ])
   })
 })

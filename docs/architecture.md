@@ -82,8 +82,13 @@ Project discovery and metadata requests use that workspace-scoped Jira client. U
 selected Jira project key, numeric ID, Test issue type, and status options on the workspace only
 after Jira metadata and the Xray root-folder probe both succeed. A project readiness service gates
 repository pages and project-data APIs; workspace onboarding remains available until the project
-is ready. Project switching checks for drafts and clears project-owned caches within its database
-transaction as the later cache models are introduced.
+is ready. `Folder` and `TestCase` rows carry both `workspaceId` and `jiraProjectId`; snapshots and
+drafts are children of their test case. Project switching locks the workspace, rejects persisted
+drafts belonging to the old project, and removes that project's folders and test cases in the same
+transaction as updating the selection. Snapshot/draft rows cascade with their test case. Future
+project-owned cache models must use the same workspace/project scope and join the switch cleanup
+boundary; folder, test-case, and draft writes acquire the workspace lock so they serialize with
+switching.
 
 ## Mock services (`packages/mock-services`)
 

@@ -4,6 +4,14 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 
 ## 2026-09-30 — US-05 Jira/Xray project selection
 
+**Follow-up in progress — finish-us-05**
+
+- Added workspace/project-scoped Folder, TestCase, TestCaseSnapshot, and TestCaseDraft foundations; draft and test-case writes serialize on the workspace lock.
+- Project replacement now checks persisted drafts and deletes the previous project's folders and test cases atomically with selection updates.
+- Integration coverage exercises draft blocking, cross-workspace isolation, cache cleanup, first selection, probe failure, and transaction rollback. US-05 E2E includes project switching and persisted-draft blocking.
+- `pnpm check`, focused project-selection integration tests, and US-05 E2E pass on the mock target.
+- US-05 verification remains pending until the implementation is committed; `pnpm verify US-05` is the only command that may mark it passing.
+
 **Done**
 
 - Activated US-05 after US-03 and US-04 passed; baseline `./scripts/init.sh` and `pnpm check` passed.
@@ -15,15 +23,15 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 
 **In progress**
 
-- US-05 is `blocked`; draft persistence and project-owned cache models do not exist yet, so the specified real draft guard and cache cleanup are not implemented. The OpenSpec task list also retains unchecked implementation tasks.
+- US-05 is `active`; implementation follow-up is being completed in OpenSpec change `finish-us-05`.
 
 **Next**
 
-- Complete US-05 remaining requirements after the draft/cache models are introduced, then run `pnpm verify US-05` on the committed implementation.
+- Finish the full verification sequence, commit `US-05: finish project-switch safeguards`, then run `pnpm verify US-05` on the clean committed tree.
 
 **Open questions**
 
-- Pending-draft detection currently returns no drafts; project-cache cleanup is currently a transaction boundary. Both need concrete implementations once US-06/US-07/US-09 provide their models before US-05 can pass.
+- US-06/US-07/US-09 should extend the workspace/project ownership and atomic cache-cleanup contract when adding their workflows and fields.
 
 ## 2026-09-30 — US-04 Xray credentials & JWT exchange
 

@@ -27,24 +27,27 @@ model User {
 }
 
 model Workspace {
-  id             String          @id @default(cuid())
-  ownerId        String
-  cloudId        String?
-  siteOrigin     String
-  siteUrl        String
-  name           String
-  jiraProjectKey String?
-  jiraProjectId  String?
-  jiraProjectName String?
-  projectReadyAt DateTime?
-  testIssueTypeId String?
+  id                String          @id @default(cuid())
+  ownerId           String
+  cloudId           String?
+  siteOrigin        String
+  siteUrl           String
+  name              String
+  jiraProjectKey    String?
+  jiraProjectId     String?
+  jiraProjectName   String?
+  projectReadyAt    DateTime?
+  testIssueTypeId   String?
   testIssueTypeName String?
-  projectStatuses Json?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  jiraConnection JiraConnection?
-  xrayConnection XrayConnection?
+  projectStatuses   Json?
+  foldersPulledAt   DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  jiraConnection    JiraConnection?
+  xrayConnection    XrayConnection?
+  folders           Folder[]
+  testCases         TestCase[]
 
   @@unique([ownerId, cloudId])
   @@unique([ownerId, siteOrigin])
@@ -59,18 +62,18 @@ enum XrayRegion {
 }
 
 model XrayConnection {
-  id                String     @id @default(cuid())
-  workspaceId       String     @unique
-  region            XrayRegion @default(GLOBAL)
-  clientId          String
-  clientSecret      String
-  jwt               String?
-  jwtExpiresAt      DateTime?
-  verifiedAt        DateTime
-  configuredAt      DateTime   @default(now())
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  workspace         Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  workspaceId  String     @unique
+  region       XrayRegion @default(GLOBAL)
+  clientId     String
+  clientSecret String
+  jwt          String?
+  jwtExpiresAt DateTime?
+  verifiedAt   DateTime
+  configuredAt DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model JiraConnection {
@@ -91,18 +94,18 @@ model JiraConnection {
 }
 
 model PendingOAuthGrant {
-  id           String   @id
-  accountId    String
-  name         String?
-  email        String?
-  avatarUrl    String?
-  accessToken  String
-  refreshToken String
+  id              String   @id
+  accountId       String
+  name            String?
+  email           String?
+  avatarUrl       String?
+  accessToken     String
+  refreshToken    String
   accessExpiresAt DateTime
-  scopes       String[]
-  expiresAt    DateTime
-  sites        Json
-  createdAt    DateTime @default(now())
+  scopes          String[]
+  expiresAt       DateTime
+  sites           Json
+  createdAt       DateTime @default(now())
 
   @@index([expiresAt])
 }
@@ -113,4 +116,68 @@ model ApiTokenSignInAttempt {
   createdAt DateTime @default(now())
 
   @@index([ipHash, createdAt])
+}
+
+enum TestCaseOrigin {
+  REMOTE
+  IMPORT
+}
+
+model Folder {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  jiraProjectId    String
+  path             String
+  name             String
+  parentPath       String?
+  remoteTestsCount Int       @default(0)
+  pulledAt         DateTime  @default(now())
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, path])
+  @@index([workspaceId, jiraProjectId])
+}
+
+model TestCase {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  jiraProjectId String
+  issueId       String
+  key           String
+  testType      String
+  folderPath    String?
+  origin        TestCaseOrigin    @default(REMOTE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  snapshot      TestCaseSnapshot?
+  draft         TestCaseDraft?
+
+  @@unique([workspaceId, issueId])
+  @@unique([workspaceId, key])
+  @@index([workspaceId, jiraProjectId])
+}
+
+model TestCaseSnapshot {
+  id              String    @id @default(cuid())
+  testCaseId      String    @unique
+  summary         String
+  labels          String[]
+  status          String
+  gherkin         String?
+  remoteUpdatedAt DateTime?
+  fingerprint     String
+  pulledAt        DateTime  @default(now())
+  testCase        TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+}
+
+model TestCaseDraft {
+  id         String   @id @default(cuid())
+  testCaseId String   @unique
+  summary    String?
+  labels     Json?
+  status     String?
+  gherkin    String?
+  updatedAt  DateTime @updatedAt
+  testCase   TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
 }
