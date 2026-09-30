@@ -308,8 +308,26 @@
         "pnpm test:int tests/integration/tests-query-api.test.ts",
         "pnpm test:e2e e2e/us-08-repository-browser.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "d09813a08478d02c82f1ace939fd4d49ea8ca7e6",
+        "verifiedAt": "2026-09-30T17:06:31.809Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 20356
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/tests-query-api.test.ts",
+            "durationMs": 2580
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-08-repository-browser.spec.ts",
+            "durationMs": 10484
+          }
+        ]
+      }
     },
     {
       "id": "US-09",
