@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>XrayBulk – UI prototype</title>
+<style>
+:root{--bg:#fafaf9;--sf:#fff;--ink:#1c1917;--mute:#78716c;--line:#e7e5e4;--brand:#4f46e5;--soft:#eef2ff;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--add:#dcfce7;--del:#fee2e2;--code:#f5f5f4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0a09;--sf:#1c1917;--ink:#f5f5f4;--mute:#a8a29e;--line:#292524;--brand:#818cf8;--soft:#1e1b4b;--add:#14532d;--del:#7f1d1d;--code:#171412}}
+:root[data-theme="dark"]{--bg:#0c0a09;--sf:#1c1917;--ink:#f5f5f4;--mute:#a8a29e;--line:#292524;--brand:#818cf8;--soft:#1e1b4b;--add:#14532d;--del:#7f1d1d;--code:#171412}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--sf);position:sticky;top:env(safe-area-inset-top,0px);z-index:5;flex-wrap:wrap}
+.logo{font-weight:700;font-size:16px;cursor:pointer}.logo b{color:var(--brand)}
+.sw{margin-left:auto;display:flex;gap:4px;background:var(--code);padding:3px;border-radius:8px}
+.sw button{border:0;background:none;padding:4px 10px;border-radius:6px;cursor:pointer;color:var(--mute)}
+.sw button.on{background:var(--sf);color:var(--ink);box-shadow:0 1px 2px #0002}
+.btn{border:1px solid var(--line);background:var(--sf);padding:6px 12px;border-radius:8px;cursor:pointer}
+.btn.p{background:var(--brand);border-color:var(--brand);color:#fff}.btn.p:hover{opacity:.9}.btn.sm{padding:3px 9px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--sf);border:1px solid var(--line);border-radius:12px;padding:20px}
+.mute{color:var(--mute)}.chip{display:inline-block;background:var(--soft);color:var(--brand);border-radius:99px;padding:0 8px;font-size:12px;margin:0 4px 2px 0}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--sf)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:-1px}
+label{display:block;font-size:12px;font-weight:600;margin:12px 0 4px}
+/* landing */
+.hero{max-width:900px;margin:0 auto;padding:64px 20px 32px;text-align:center}
+.hero h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:0 0 16px;letter-spacing:-.02em}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;max-width:1000px;margin:24px auto;padding:0 20px}
+.steps{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:32px 0 0}
+.steps span{background:var(--sf);border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:12px}
+/* login */
+.login{max-width:420px;margin:48px auto;padding:0 16px}
+.tabs{display:flex;border-bottom:1px solid var(--line);margin:16px 0 4px}
+.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:8px;cursor:pointer;color:var(--mute)}
+.tabs button.on{border-color:var(--brand);color:var(--ink);font-weight:600}
+.err{color:var(--bad);font-size:12px;margin-top:4px}
+/* repo */
+.repo{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 110px)}
+.side{border-right:1px solid var(--line);padding:12px;background:var(--sf);overflow:auto}
+.fn{padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.fn:hover{background:var(--code)}.fn.on{background:var(--soft);color:var(--brand);font-weight:600}
+.main{padding:16px 20px;min-width:0}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.bar input{max-width:280px}
+.bulk{background:var(--soft);border:1px solid var(--brand);border-radius:10px;padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--sf)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--mute);font-weight:600}tr:last-child td{border:0}
+td input,td select{padding:3px 6px;border-color:transparent;background:transparent}td input:hover,td select:hover{border-color:var(--line)}
+.key{color:var(--brand);cursor:pointer;font-weight:600;white-space:nowrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn);margin-right:6px}
+/* edit */
+.edit{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;max-width:1300px;margin:0 auto}
+.ed{position:relative;height:320px;border:1px solid var(--line);border-radius:10px;background:var(--code);overflow:hidden}
+.ed pre,.ed textarea{position:absolute;inset:0;margin:0;padding:10px 10px 10px 44px;font:13px/20px ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow:auto;border:0;tab-size:2}
+.ed textarea{background:transparent;color:transparent;caret-color:var(--ink);resize:none;outline:none}
+.ed .ln{position:absolute;left:0;top:0;bottom:0;width:36px;padding:10px 6px 0 0;text-align:right;color:var(--mute);font:13px/20px ui-monospace,Menlo,monospace;background:var(--code);white-space:pre;overflow:hidden;z-index:1}
+.kw{color:var(--brand);font-weight:700}.tg{color:var(--warn)}.cm{color:var(--mute);font-style:italic}
+.diff div{font:13px/20px ui-monospace,Menlo,monospace;white-space:pre-wrap;padding:0 8px}
+.diff .a{background:var(--add)}.diff .d{background:var(--del)}
+.st{display:inline-block;border-radius:6px;padding:0 8px;font-size:12px;font-weight:600}
+.pass{background:var(--add)}.fail{background:var(--del)}
+@media(max-width:800px){.repo,.edit{grid-template-columns:1fr}.side{border:0;border-bottom:1px solid var(--line)}}
+</style></head><body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
+<script>
+const {createApp,ref,reactive,computed,watch}=Vue;
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const KW=/^(\s*)(Feature|Scenario Outline|Scenario|Background|Examples|Given|When|Then|And|But)\b/;
+const hl=t=>t.split('\n').map(l=>{
+  if(/^\s*#/.test(l))return '<span class="cm">'+esc(l)+'</span>';
+  let m=KW.exec(l),o=esc(l);
+  if(m)o=m[1]+'<span class="kw">'+m[2]+'</span>'+esc(l.slice(m[0].length));
+  return o.replace(/(@[\w-]+)/g,'<span class="tg">$1</span>');}).join('\n')+'\n';
+const lint=t=>{const e=[];const L=t.split('\n');let f=false,s=false;
+  L.forEach((l,i)=>{const x=l.trim();if(!x||x[0]==='#'||x[0]==='@')return;
+    if(/^Feature:/.test(x))f=true;
+    else if(/^Scenario( Outline)?:/.test(x))s=true;
+    else if(/^(Given|When|Then|And|But)\b/.test(x)){if(!s)e.push([i+1,'Step outside a Scenario'])}
+    else if(!/^(Background:|Examples:|\|)/.test(x)&&!/^[A-Za-z]/.test(x))e.push([i+1,'Unexpected token']);});
+  if(!f)e.push([1,'Missing "Feature:" header']);
+  if(!/Then\b/.test(t))e.push([L.length,'Scenario has no "Then" step']);return e;};
+const REMOTE=`@checkout @smoke
+Feature: Card payment
+  Scenario: Pay with a valid card
+    Given a cart with 2 items
+    When the user pays with a valid card
+    Then the order is confirmed`;
+const STATUS=['Draft','In Review','Approved','Deprecated'];
+createApp({setup(){
+  const screen=ref('landing'),dark=ref(matchMedia('(prefers-color-scheme:dark)').matches);
+  watch(dark,v=>document.documentElement.dataset.theme=v?'dark':'light',{immediate:true});
+  const tab=ref('oauth'),f=reactive({site:'',email:'',token:''});
+  const siteErr=computed(()=>f.site&&!/^https:\/\/[a-z0-9-]+\.atlassian\.net\/?$/i.test(f.site)?'Use https://<your-site>.atlassian.net':'');
+  const tree=[{id:0,n:'All tests',d:0,c:11},{id:1,n:'Checkout',d:0,c:6},{id:2,n:'Payments',d:1,c:4},{id:3,n:'Cart',d:1,c:2},{id:4,n:'Auth',d:0,c:4},{id:5,n:'SSO',d:1,c:2},{id:6,n:'Search',d:0,c:1}];
+  const folder=ref(0),q=ref('');
+  const tests=reactive([
+    ['CALC-101','Pay with a valid card',2,['smoke','checkout'],'Approved'],['CALC-102','Pay with an expired card',2,['negative'],'Draft'],
+    ['CALC-103','Retry after declined payment',2,['checkout'],'In Review'],['CALC-104','Apply promo code',2,['promo'],'Draft'],
+    ['CALC-110','Add item to cart',3,['smoke'],'Approved'],['CALC-111','Remove item from cart',3,[],'Draft'],
+    ['CALC-120','Login with password',4,['smoke','auth'],'Approved'],['CALC-121','Lock account after 5 failures',4,['security'],'In Review'],
+    ['CALC-122','Login with Google SSO',5,['sso'],'Approved'],['CALC-123','SSO redirect loop guard',5,['sso','negative'],'Draft'],
+    ['CALC-130','Search returns relevant results',6,['smoke'],'Approved']
+  ].map(([k,n,fo,l,s])=>({k,n,fo,l,s,o:{n,l:l.join(),s},steps:REMOTE.replace('Card payment',n)})));
+  const kids=id=>({0:[1,2,3,4,5,6],1:[1,2,3],4:[4,5]}[id]||[id]);
+  const rows=computed(()=>tests.filter(t=>(folder.value===0||kids(folder.value).includes(t.fo))&&(t.k+t.n).toLowerCase().includes(q.value.toLowerCase())));
+  const dirty=t=>t.n!==t.o.n||t.l.join()!==t.o.l||t.s!==t.o.s||t.steps!==REMOTE.replace('Card payment',t.o.n);
+  const sel=reactive(new Set()),drafts=computed(()=>tests.filter(dirty).length);
+  const toggle=k=>sel.has(k)?sel.delete(k):sel.add(k);
+  const all=()=>{const on=rows.value.every(r=>sel.has(r.k));rows.value.forEach(r=>on?sel.delete(r.k):sel.add(r.k))};
+  const bulk=(fn)=>tests.filter(t=>sel.has(t.k)).forEach(fn);
+  const addLabel=()=>{const v=prompt('Label to add');v&&bulk(t=>!t.l.includes(v)&&t.l.push(v))};
+  const setStatus=s=>bulk(t=>t.s=s);
+  const cur=ref(tests[0]),mode=ref('edit');
+  const open=t=>{cur.value=t;mode.value='edit';screen.value='edit'};
+  const errs=computed(()=>lint(cur.value.steps));
+  const diff=computed(()=>{const a=REMOTE.replace('Card payment',cur.value.o.n).split('\n'),b=cur.value.steps.split('\n');
+    return [...a.filter(x=>!b.includes(x)).map(x=>['d','- '+x]),...b.map(x=>[a.includes(x)?'':'a',(a.includes(x)?'  ':'+ ')+x])];});
+  const lines=computed(()=>Array.from({length:cur.value.steps.split('\n').length},(_,i)=>i+1).join('\n'));
+  const sync=e=>{const p=e.target.previousElementSibling,l=p.previousElementSibling;p.scrollTop=e.target.scrollTop;p.scrollLeft=e.target.scrollLeft;l.scrollTop=e.target.scrollTop};
+  const undo=()=>{const t=cur.value;t.n=t.o.n;t.l=t.o.l?t.o.l.split(','):[];t.s=t.o.s;t.steps=REMOTE.replace('Card payment',t.o.n)};
+  const addTag=e=>{const v=e.target.value.trim();if(v&&!cur.value.l.includes(v))cur.value.l.push(v);e.target.value=''};
+  return{screen,dark,tab,f,siteErr,tree,folder,q,rows,sel,toggle,all,drafts,addLabel,setStatus,STATUS,cur,open,errs,diff,lines,sync,undo,addTag,dirty,hl,mode,tests};
+},
+template:`
+<header class="top"><span class="logo" @click="screen='landing'">Xray<b>Bulk</b></span>
+ <template v-if="screen==='repo'||screen==='edit'"><span class="mute">Project CALC</span><span class="mute">·</span><a class="mute" style="cursor:pointer" @click="screen='repo'">Repository</a>
+  <span class="chip" v-if="drafts">{{drafts}} draft{{drafts>1?'s':''}}</span></template>
+ <div class="sw"><button v-for="s in ['landing','login','repo','edit']" :class="{on:screen===s}" @click="screen=s">{{{landing:'Landing',login:'Login',repo:'Repository',edit:'Editor'}[s]}}</button></div>
+ <button class="btn sm" @click="dark=!dark" aria-label="Toggle theme">{{dark?'☀':'☾'}}</button></header>
+
+<section v-if="screen==='landing'">
+ <div class="hero"><span class="chip">Jira + Xray Cloud</span>
+  <h1>Edit hundreds of Xray test cases <span style="color:var(--brand)">in one place</span></h1>
+  <p class="mute" style="font-size:17px;max-width:620px;margin:0 auto 24px">Pull your test repository, bulk-edit as local drafts, import Gherkin from Markdown, review every diff, then sync back safely.</p>
+  <button class="btn p" style="padding:10px 22px" @click="screen='login'">Sign in with Jira</button>
+  <button class="btn" style="padding:10px 22px;margin-left:8px" @click="screen='repo'">View demo</button>
+  <div class="steps"><span>1 Pull</span><span>2 Edit drafts</span><span>3 Import .md</span><span>4 Review diff</span><span>5 Sync</span><span>6 Export</span></div></div>
+ <div class="grid3">
+  <div class="card"><b>Bulk editor grid</b><p class="mute">Edit summary, labels and status inline. Autosaved drafts, undo, no remote writes.</p></div>
+  <div class="card"><b>Gherkin steps editor</b><p class="mute">Highlighting, live validation and side-by-side comparison with Xray.</p></div>
+  <div class="card"><b>Conflict-aware sync</b><p class="mute">Three-way diff catches remote changes before anything is overwritten.</p></div>
+  <div class="card"><b>Markdown import / export</b><p class="mute">Round-trip scenarios as .md — export then import is a no-op.</p></div>
+  <div class="card"><b>Secure by design</b><p class="mute">Encrypted tokens, redacted logs, secrets never reach the browser.</p></div>
+  <div class="card"><b>Audit history</b><p class="mute">Every sync batch with applied diffs, errors and retry-failed.</p></div></div>
+</section>
+
+<section v-else-if="screen==='login'"><div class="login"><div class="card">
+ <h2 style="margin:0">Connect to Jira</h2><p class="mute" style="margin:4px 0 0">Sign in to browse and edit your Xray tests.</p>
+ <div class="tabs"><button :class="{on:tab==='oauth'}" @click="tab='oauth'">Atlassian OAuth</button><button :class="{on:tab==='token'}" @click="tab='token'">Email + API token</button></div>
+ <div v-if="tab==='oauth'" style="padding-top:12px"><button class="btn p" style="width:100%;padding:10px" @click="screen='repo'">Continue with Atlassian</button>
+  <p class="mute" style="font-size:12px">You'll be redirected to Atlassian to approve access. Tokens are encrypted and never sent to your browser.</p></div>
+ <div v-else><label>Jira site URL</label><input v-model="f.site" placeholder="https://acme.atlassian.net"><div class="err" v-if="siteErr">{{siteErr}}</div>
+  <label>Email</label><input v-model="f.email" type="email" placeholder="you@company.com">
+  <label>API token</label><input v-model="f.token" type="password" placeholder="••••••••">
+  <button class="btn p" style="width:100%;margin-top:16px;padding:10px" :disabled="!f.site||!f.email||!f.token||siteErr" @click="screen='repo'">Verify &amp; connect</button></div>
+</div></div></section>
+
+<section v-else-if="screen==='repo'" class="repo">
+ <aside class="side"><div class="mute" style="font-size:12px;font-weight:600;margin:4px 8px">FOLDERS</div>
+  <div v-for="t in tree" class="fn" :class="{on:folder===t.id}" :style="{paddingLeft:(8+t.d*16)+'px'}" @click="folder=t.id"><span>{{t.d||t.id===0?'':''}}📁 {{t.n}}</span><span class="mute">{{t.c}}</span></div>
+  <button class="btn sm" style="margin:12px 8px">↻ Pull from Xray</button></aside>
+ <div class="main">
+  <div class="bar"><input v-model="q" placeholder="Search key or summary…" aria-label="Search"><span class="mute">{{rows.length}} tests</span>
+   <span style="flex:1"></span><button class="btn p" :disabled="!drafts">Review {{drafts}} change{{drafts===1?'':'s'}}</button></div>
+  <div class="bulk" v-if="sel.size"><b>{{sel.size}} selected</b>
+   <button class="btn sm" @click="addLabel">+ Label</button>
+   <select style="width:auto" @change="setStatus($event.target.value);$event.target.selectedIndex=0"><option>Set status…</option><option v-for="s in STATUS">{{s}}</option></select>
+   <button class="btn sm">Find &amp; replace</button><button class="btn sm" @click="sel.clear()">Clear</button></div>
+  <div class="tw"><table><thead><tr><th style="width:32px"><input type="checkbox" style="width:auto" @change="all" :checked="rows.length&&rows.every(r=>sel.has(r.k))"></th><th>Key</th><th>Summary</th><th>Labels</th><th>Status</th></tr></thead>
+   <tbody><tr v-for="t in rows" :key="t.k"><td><input type="checkbox" style="width:auto" :checked="sel.has(t.k)" @change="toggle(t.k)"></td>
+    <td><span class="dot" v-if="dirty(t)" title="Local draft"></span><span class="key" @click="open(t)">{{t.k}}</span></td>
+    <td><input v-model="t.n"></td><td><span class="chip" v-for="l in t.l">{{l}}</span><span v-if="!t.l.length" class="mute">—</span></td>
+    <td><select v-model="t.s"><option v-for="s in STATUS">{{s}}</option></select></td></tr>
+    <tr v-if="!rows.length"><td colspan="5" class="mute" style="text-align:center;padding:32px">No tests match.</td></tr></tbody></table></div>
+  <p class="mute" style="font-size:12px">Edits are saved as local drafts. Nothing is written to Xray until you review and sync.</p></div>
+</section>
+
+<section v-else class="edit">
+ <div><a class="mute" style="cursor:pointer" @click="screen='repo'">← Back to repository</a>
+  <div class="card" style="margin-top:8px"><div class="key" style="font-size:16px">{{cur.k}}</div>
+   <label>Summary</label><input v-model="cur.n">
+   <label>Status</label><select v-model="cur.s"><option v-for="s in STATUS">{{s}}</option></select>
+   <label>Labels</label><div><span class="chip" v-for="l in cur.l" style="cursor:pointer" @click="cur.l.splice(cur.l.indexOf(l),1)">{{l}} ×</span></div>
+   <input placeholder="Add label + Enter" @keydown.enter.prevent="addTag" style="margin-top:6px">
+   <div style="margin-top:16px;display:flex;gap:8px"><button class="btn" @click="undo" :disabled="!dirty(cur)">Undo all</button><button class="btn p" :disabled="errs.length" style="flex:1">Add to review</button></div>
+   <p class="mute" style="font-size:12px"><span class="dot" v-if="dirty(cur)"></span>{{dirty(cur)?'Draft autosaved':'No local changes'}}</p></div></div>
+ <div class="card"><div class="bar" style="margin-bottom:8px"><b>Gherkin steps</b><span style="flex:1"></span>
+   <div class="sw" style="margin:0"><button :class="{on:mode==='edit'}" @click="mode='edit'">Edit</button><button :class="{on:mode==='diff'}" @click="mode='diff'">Compare with Xray</button></div></div>
+  <div class="ed" v-show="mode==='edit'"><div class="ln">{{lines}}</div><pre v-html="hl(cur.steps)"></pre><textarea v-model="cur.steps" spellcheck="false" @scroll="sync" aria-label="Gherkin"></textarea></div>
+  <div class="diff ed" v-show="mode==='diff'" style="overflow:auto;padding:8px 0"><div v-for="d in diff" :class="d[0]">{{d[1]}}</div></div>
+  <div style="margin-top:10px"><span class="st" :class="errs.length?'fail':'pass'">{{errs.length?errs.length+' issue'+(errs.length>1?'s':''):'Valid Gherkin'}}</span>
+   <div class="err" v-for="e in errs">Line {{e[0]}}: {{e[1]}}</div></div></div>
+</section>`}).mount('#app');
+</script></body></html>
