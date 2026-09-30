@@ -90,6 +90,20 @@ project-owned cache models must use the same workspace/project scope and join th
 boundary; folder, test-case, and draft writes acquire the workspace lock so they serialize with
 switching.
 
+Repository pulls stage the complete remote folder tree and (for a full pull) all paged lightweight
+test index records (issue identity, key, name/summary, folder) before applying changes. One
+transaction under the workspace row lock rechecks the selected project, upserts changed folders and
+index entries (clearing a previously loaded test type when the index pull replaces it), removes stale
+remote rows, preserves stale test cases with drafts by setting
+`remoteDeletedAt`, and updates `foldersPulledAt`. Index pulls do not create or refresh snapshots.
+Opening a detail view fetches current Xray details on every open without persisting them. Selecting
+tests for the editor fetches those details and compares them to any existing snapshot: missing
+snapshots are created, unchanged snapshots are left untouched, changed snapshots refresh only when
+there is no draft, and changed baselines are preserved when a draft exists. Snapshot fingerprints
+are SHA-256 of JSON containing trimmed summary, sorted labels, trimmed status, and Gherkin with
+CRLF/CR normalized to LF and surrounding whitespace trimmed. Folder and test-index queries are
+cache-only; detail and editor-selection flows are the only repository reads that call Xray.
+
 ## Mock services (`packages/mock-services`)
 
 - `@xray-tool/mock-services` is an h3 1.x app run with `pnpm mock` on `MOCK_SERVICES_PORT` (default 4010).

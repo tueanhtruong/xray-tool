@@ -1,0 +1,12 @@
+query GetTestIndex($projectId: String!, $limit: Int!, $start: Int!) {
+  getTests(projectId: $projectId, limit: $limit, start: $start) {
+    total
+    start
+    limit
+    results {
+      issueId
+      folder { path }
+      jira(fields: ["key", "summary"])
+    }
+  }
+}

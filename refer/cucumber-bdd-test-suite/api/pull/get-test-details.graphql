@@ -1,0 +1,12 @@
+query GetTestDetails($jql: String!, $limit: Int!) {
+  getTests(jql: $jql, limit: $limit) {
+    results {
+      issueId
+      testType { name kind }
+      gherkin
+      folder { path }
+      lastModified
+      jira(fields: ["key", "summary", "labels", "status", "updated"])
+    }
+  }
+}

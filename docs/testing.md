@@ -42,9 +42,12 @@ Three verification layers, run in this order: **static → runtime → end-to-en
 - `./scripts/init.sh` creates `xray_test` if it is missing (`scripts/ensure-test-db.mjs`).
 - Integration test files run sequentially (`fileParallelism: false`) because they share one DB.
 
-## Live contract tests (`test:live`, reserved)
+## Live contract tests (`test:live`)
 
-The script and folder (`tests/live/`) are reserved. The first test arrives with US-02/US-04.
+`pnpm test:live` performs read-only Xray GraphQL contract checks for folder trees, paged lightweight
+test indexes, and on-demand test details
+against a dedicated sandbox project. It requires `SANDBOX_XRAY_CLIENT_ID`,
+`SANDBOX_XRAY_CLIENT_SECRET`, and `SANDBOX_XRAY_PROJECT_ID`; `SANDBOX_XRAY_BASE_URL` is optional.
 
 - Run only against a **dedicated sandbox** Jira/Xray site and project (`SANDBOX_*` variables).
   Never a production site.

@@ -4,7 +4,9 @@ import { getAppSession } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
   const { pathname } = getRequestURL(event)
-  const isRepositoryApi = pathname === '/api/repository' || pathname.startsWith('/api/repository/')
+  const isRepositoryApi = pathname === '/api/repository' || pathname.startsWith('/api/repository/') ||
+    pathname === '/api/pull' || pathname.startsWith('/api/pull/') ||
+    pathname === '/api/folders' || pathname === '/api/tests' || pathname.startsWith('/api/tests/')
   const isRepositoryPage = pathname === '/repository' || pathname.startsWith('/repository/')
   if (!isRepositoryPage && !isRepositoryApi) return
   if (isRepositoryApi) {

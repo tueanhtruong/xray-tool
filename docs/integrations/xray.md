@@ -2,7 +2,7 @@
 
 US-04 connects each workspace to Xray Cloud. The app stores API client credentials encrypted and
 uses Xray JWTs only on the server. US-05 adds the read-only root-folder probe used to verify a
-selected Jira project's Xray access; folder/test synchronization remains part of later stories.
+selected Jira project's Xray access. US-06/07 use the same client to read folder trees and tests.
 
 ## Endpoints and regions
 
@@ -15,6 +15,19 @@ The client uses these Xray Cloud API v2 endpoints:
 - `query GetFolder($projectId: String!, $path: String!)` verifies access using the numeric Jira
   project ID and root path `/` during project selection. The server keeps this small query with the
   Xray client so it is compatible with both Vite development and Nitro production builds.
+- Folder pull requests the root with `name`, `path`, `testsCount`, `preconditionsCount`,
+  `issuesCount`, and `folders`. Xray documents `folders` as a JSON scalar; the root response
+  contains nested child objects with those same fields. The client validates each child's name,
+  path, test count, and nested folders, then derives parent paths while flattening the tree.
+- The lightweight test-index pull uses `getTests(projectId, limit, start)` with a maximum page limit
+  of 100 and reads `total`, `start`, `limit`, `issueId`, `folder { path }`, and Jira `key` and
+  `summary` only. It does not request test type, Gherkin, labels, status, or update timestamps.
+- Opening a test fetches current details with `getTests(jql: "key = ...", limit: 1)`; editor selection
+  batches keys into one JQL `IN` query (up to 100 tests per request). Both read issue identity,
+  test type, Gherkin, folder, Xray `lastModified`, and Jira key, summary, labels, status, and updated.
+  Detail opens do not persist the response. Selecting tests for the editor uses the same details and
+  safely creates or refreshes snapshots after comparing normalized fingerprints; changed baselines
+  are retained when a local draft exists.
 
 The supported, server allow-listed regions are:
 

@@ -144,9 +144,11 @@ model TestCase {
   jiraProjectId String
   issueId       String
   key           String
-  testType      String
+  summary       String?
+  testType      String?
   folderPath    String?
   origin        TestCaseOrigin    @default(REMOTE)
+  remoteDeletedAt DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

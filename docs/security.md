@@ -34,7 +34,8 @@
 
 - `live` target development and `pnpm test:live` may only touch a **dedicated sandbox** Jira/Xray
   site and project (`SANDBOX_*` variables in `.env`), never a production site.
-- Automated writes are namespaced, stay inside `SANDBOX_PROJECT_KEY`, and are cleaned up.
+- Automated writes are namespaced, stay inside `SANDBOX_PROJECT_KEY`, and are cleaned up. The
+  Xray GraphQL contract probe uses `SANDBOX_XRAY_PROJECT_ID` and is read-only.
 - Live responses copied into fixtures must be sanitized first (see [testing.md](testing.md#fixture-sanitization)).
 
 ## Local infrastructure

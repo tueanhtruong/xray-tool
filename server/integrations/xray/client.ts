@@ -9,6 +9,40 @@ const GET_FOLDER_QUERY = `
     getFolder(projectId: $projectId, path: $path) {
       name
       path
+      testsCount
+      preconditionsCount
+      issuesCount
+      folders
+    }
+  }
+`
+
+const GET_TEST_INDEX_QUERY = `
+  query GetTestIndex($projectId: String!, $limit: Int!, $start: Int!) {
+    getTests(projectId: $projectId, limit: $limit, start: $start) {
+      total
+      start
+      limit
+      results {
+        issueId
+        folder { path }
+        jira(fields: ["key", "summary"])
+      }
+    }
+  }
+`
+
+const GET_TEST_DETAILS_QUERY = `
+  query GetTestDetails($jql: String!, $limit: Int!) {
+    getTests(jql: $jql, limit: $limit) {
+      results {
+        issueId
+        testType { name kind }
+        gherkin
+        folder { path }
+        lastModified
+        jira(fields: ["key", "summary", "labels", "status", "updated"])
+      }
     }
   }
 `
@@ -285,13 +319,46 @@ export function getWorkspaceXrayClient(workspaceId: string): WorkspaceXrayClient
 }
 
 export interface XrayFolder {
-  name: string
+  name: string | null
   path: string
+  testsCount: number
+  folders: unknown
 }
+
+export interface XrayTestIndexEntry {
+  issueId: string
+  folder: { path: string } | null
+  jira: unknown
+}
+
+export interface XrayTestDetails {
+  issueId: string
+  testType: { name: string; kind: string } | null
+  gherkin: string | null
+  folder: { path: string } | null
+  lastModified: string | null
+  jira: unknown
+}
+
+export interface XrayTestPage {
+  total: number
+  start: number
+  limit: number
+  results: XrayTestIndexEntry[]
+}
+
+export const XRAY_PULL_QUERIES = {
+  folderTree: GET_FOLDER_QUERY,
+  testIndex: GET_TEST_INDEX_QUERY,
+  testDetails: GET_TEST_DETAILS_QUERY,
+} as const
 
 export async function getXrayProjectRoot(workspaceId: string, projectId: string): Promise<XrayFolder> {
   const result = await getWorkspaceXrayClient(workspaceId).graphql<{
-    getFolder: XrayFolder | null
+    getFolder: Omit<XrayFolder, 'testsCount' | 'folders'> & {
+      testsCount?: number | null
+      folders?: unknown
+    } | null
   }>(
     GET_FOLDER_QUERY,
     { projectId, path: '/' },
@@ -299,8 +366,151 @@ export async function getXrayProjectRoot(workspaceId: string, projectId: string)
   if (!result.getFolder || result.getFolder.path !== '/') {
     throw new XrayError('Xray returned an invalid root-folder response for this project.')
   }
-  return result.getFolder
+  return { ...result.getFolder, testsCount: result.getFolder.testsCount ?? 0, folders: result.getFolder.folders ?? [] }
 }
+
+export async function getXrayProjectFolders(
+  workspaceId: string,
+  projectId: string,
+): Promise<Array<{ name: string; path: string; parentPath: string | null; remoteTestsCount: number }>> {
+  const client = getWorkspaceXrayClient(workspaceId)
+  const result = await client.graphql<{ getFolder: {
+    name: string | null
+    path: string
+    testsCount: number | null
+    preconditionsCount: number | null
+    issuesCount: number | null
+    folders: unknown
+  } | null }>(GET_FOLDER_QUERY, { projectId, path: '/' })
+  const root = result.getFolder
+  if (!root || root.path !== '/') throw new XrayError('Xray returned an invalid root-folder response.')
+  const roots = parseFolderChildren(root.folders)
+  const folders: Array<{ name: string; path: string; parentPath: string | null; remoteTestsCount: number }> = []
+  const pending = roots.map((folder) => ({ ...folder, parentPath: '/' }))
+  const visited = new Set<string>()
+  while (pending.length > 0) {
+    const folder = pending.shift()!
+    if (visited.has(folder.path)) throw new XrayError('Xray returned a cyclic folder tree.')
+    visited.add(folder.path)
+    folders.push({
+      name: folder.name,
+      path: folder.path,
+      parentPath: folder.parentPath,
+      remoteTestsCount: folder.testsCount,
+    })
+    for (const child of folder.folders) pending.push({ ...child, parentPath: folder.path })
+  }
+  return folders
+}
+
+interface ParsedFolder {
+  name: string
+  path: string
+  testsCount: number
+  folders: ParsedFolder[]
+}
+
+function parseFolderChildren(value: unknown): ParsedFolder[] {
+  let parsed = value
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed) as unknown
+    } catch {
+      throw new XrayError('Xray returned an invalid folder tree.')
+    }
+  }
+  if (parsed === null || parsed === undefined) return []
+  if (!Array.isArray(parsed)) throw new XrayError('Xray returned an invalid folder tree.')
+  return parsed.map((entry) => {
+    if (!isRecord(entry) || typeof entry.name !== 'string' || typeof entry.path !== 'string') {
+      throw new XrayError('Xray returned an invalid folder entry.')
+    }
+    const testsCount = entry.testsCount
+    if (testsCount !== undefined && testsCount !== null && (!Number.isInteger(testsCount) || typeof testsCount !== 'number')) {
+      throw new XrayError('Xray returned an invalid folder test count.')
+    }
+    const issuesCount = entry.issuesCount
+    const preconditionsCount = entry.preconditionsCount
+    if ([issuesCount, preconditionsCount].some((count) => count !== undefined && count !== null && (typeof count !== 'number' || !Number.isInteger(count)))) {
+      throw new XrayError('Xray returned invalid folder counts.')
+    }
+    return {
+      name: entry.name,
+      path: entry.path,
+      testsCount: typeof testsCount === 'number' ? testsCount : 0,
+      folders: parseFolderChildren(entry.folders),
+    }
+  })
+}
+
+export async function getXrayTestsPage(
+  workspaceId: string,
+  projectId: string,
+  start: number,
+  limit = 100,
+): Promise<XrayTestPage> {
+  if (!Number.isInteger(start) || start < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new XrayError('Xray test pagination is invalid.')
+  }
+  const result = await getWorkspaceXrayClient(workspaceId).graphql<{
+    getTests: XrayTestPage | null
+  }>(GET_TEST_INDEX_QUERY, { projectId, start, limit })
+  const page = result.getTests
+  if (
+    !page || !Number.isInteger(page.total) || page.total < 0 || page.start !== start ||
+    page.limit !== limit || !Array.isArray(page.results) || page.results.length > limit
+  ) {
+    throw new XrayError('Xray returned an invalid test page.')
+  }
+  for (const entry of page.results) {
+    const jira = isRecord(entry.jira) ? entry.jira : {}
+    if (typeof entry.issueId !== 'string' || typeof jira.key !== 'string' || typeof jira.summary !== 'string') {
+      throw new XrayError('Xray returned an invalid test index entry.')
+    }
+  }
+  return page
+}
+
+export async function getXrayTestDetailsByKey(
+  workspaceId: string,
+  key: string,
+): Promise<XrayTestDetails> {
+  const result = await getXrayTestDetailsByKeys(workspaceId, [key])
+  const test = result[0]
+  if (!test) throw new XrayError('Xray did not return the requested test details.', 404)
+  return test
+}
+
+export async function getXrayTestDetailsByKeys(
+  workspaceId: string,
+  keys: string[],
+): Promise<XrayTestDetails[]> {
+  if (keys.length < 1 || keys.length > 100 || keys.some((key) => !/^[A-Z][A-Z0-9_]*-\d+$/.test(key)) || new Set(keys).size !== keys.length) {
+    throw new XrayError('Xray test keys are invalid.')
+  }
+  const jql = keys.length === 1
+    ? `key = "${keys[0]}"`
+    : `key in (${keys.map((key) => `"${key}"`).join(', ')})`
+  const result = await getWorkspaceXrayClient(workspaceId).graphql<{
+    getTests: { results: XrayTestDetails[] } | null
+  }>(GET_TEST_DETAILS_QUERY, { jql, limit: keys.length })
+  const tests = result.getTests?.results
+  if (!Array.isArray(tests) || tests.length !== keys.length) {
+    throw new XrayError('Xray did not return details for every requested test.', 404)
+  }
+  const requested = new Set(keys)
+  const found = new Set<string>()
+  for (const test of tests) {
+    const jira = isRecord(test.jira) ? test.jira : {}
+    if (typeof test.issueId !== 'string' || typeof jira.key !== 'string' || typeof jira.summary !== 'string' || !requested.has(jira.key) || found.has(jira.key)) {
+      throw new XrayError('Xray returned an invalid test details response.')
+    }
+    found.add(jira.key)
+  }
+  if (found.size !== keys.length) throw new XrayError('Xray did not return details for every requested test.', 404)
+  return tests
+}
+
 
 export async function verifyXrayCredentials(
   region: XrayRegion,

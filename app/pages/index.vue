@@ -40,6 +40,44 @@ const projectPage = ref<{ values: Array<{ id: string; key: string; name: string 
 const projectError = ref('')
 const projectMessage = ref('')
 const projectPending = ref(false)
+const pullPending = ref(false)
+const pullError = ref('')
+const pullResult = ref('')
+const { data: pullStatus, refresh: refreshPullStatus } = await useFetch<{
+  state: 'idle' | 'running' | 'succeeded' | 'failed'
+  fetched: number
+  total: number | null
+  folders: number | null
+  message?: string
+  requestId?: string
+}>('/api/pull/status', { lazy: true })
+let pullPoll: ReturnType<typeof setInterval> | undefined
+
+async function pullFolders() {
+  pullError.value = ''
+  pullResult.value = ''
+  pullPending.value = true
+  try {
+    await $fetch('/api/pull/folders', { method: 'POST' })
+    await refreshPullStatus()
+    pullPoll = setInterval(async () => {
+      await refreshPullStatus()
+      if (pullStatus.value?.state !== 'running') {
+        if (pullPoll) clearInterval(pullPoll)
+        pullPoll = undefined
+        pullPending.value = false
+        if (pullStatus.value?.state === 'succeeded') pullResult.value = pullStatus.value.message ?? 'Folder pull completed.'
+        if (pullStatus.value?.state === 'failed') pullError.value = pullStatus.value.message ?? 'Xray folders could not be pulled.'
+      }
+    }, 500)
+  } catch (error) {
+    pullPending.value = false
+    pullError.value = error && typeof error === 'object' && 'data' in error && error.data &&
+      typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
+      ? error.data.message
+      : 'Xray folders could not be pulled. Check the Xray connection and try again.'
+  }
+}
 
 async function searchProjects(startAt = 0) {
   projectError.value = ''
@@ -158,6 +196,9 @@ async function saveXrayConnection() {
 }
 
 useHead({ title: appName })
+onBeforeUnmount(() => {
+  if (pullPoll) clearInterval(pullPoll)
+})
 </script>
 
 <template>
@@ -179,6 +220,13 @@ useHead({ title: appName })
         </li>
       </ol>
       <p v-if="data?.workspace.projectReady" data-testid="workspace-ready">Ready</p>
+      <NuxtLink v-if="data?.workspace.projectReady" to="/repository" class="underline" data-testid="repository-link">Open Test Repository</NuxtLink>
+      <section v-if="data?.workspace.projectReady" class="space-y-2" data-testid="pull-folders">
+        <UButton :loading="pullPending" @click="pullFolders">Pull folders</UButton>
+        <p v-if="pullPending" role="status">Pulling folders… {{ pullStatus?.fetched ?? 0 }} / {{ pullStatus?.total ?? '?' }}</p>
+        <UAlert v-if="pullError" color="error" :title="pullError" :description="pullStatus?.requestId ? `Request ID: ${pullStatus.requestId}` : undefined" data-testid="pull-error" />
+        <UAlert v-if="pullResult" color="success" :title="pullResult" data-testid="pull-result" />
+      </section>
       <form v-if="data?.workspace.jiraConnected && data?.workspace.xrayConnected" class="space-y-3" @submit.prevent="searchProjects(0)">
         <UFormField label="Search Jira projects" name="projectQuery">
           <UInput v-model="projectQuery" data-testid="project-query" />

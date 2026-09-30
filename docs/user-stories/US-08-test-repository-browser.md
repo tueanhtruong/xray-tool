@@ -16,11 +16,11 @@ As a QA engineer, I want to browse folders and test cases like in Xray's Test Re
 
 - `/repository` page: folder tree (left) and test list (right).
 - Folder tree: expand/collapse, test counts, keyboard navigable, remembers expanded state per workspace (localStorage).
-- Test list columns: key, summary, labels, status, folder, test type, read-only badge.
-- Search by key, summary text, or label; filter by status, label, test type; toggle "include subfolders".
-- Server-side pagination/virtualized list; URL reflects folder + filters (shareable, back-button safe).
+- Test list columns: key, name/summary, and folder.
+- Search by key or name/summary; toggle "include subfolders".
+- Server-side pagination/virtualized list; URL reflects folder + search (shareable, back-button safe).
 - Header shows "Last pulled <relative time>" and a "Pull from Xray" button (US-07) with progress.
-- Detail drawer: read-only view of summary, labels, status and syntax-highlighted Gherkin.
+- Detail drawer: fetches fresh Xray details on every open and displays summary, labels, status, type and syntax-highlighted Gherkin without persisting the response.
 - "Open in Jira" link: `target="_blank" rel="noopener noreferrer"`, URL built from stored site, never from user input.
 - Row selection (checkbox) with "Open N selected in editor" action (target page stubbed until US-09).
 - Empty states: not pulled yet, empty folder, no search results.
@@ -45,18 +45,19 @@ Feature: Browse test repository
     When I search "ONEDS-14043"
     Then exactly that test is listed
 
-  Scenario: Filter by label
-    When I filter by label "need-review"
-    Then only tests having that label are listed
-
   Scenario: Deep link
-    Given I filtered by folder and label
+    Given I searched by name in a folder
     When I reload the page
-    Then the same folder and filters are applied
+    Then the same folder and search are applied
 
   Scenario: Read-only detail
     When I open test ONEDS-14043
-    Then I see its Gherkin with syntax highlighting and no edit controls
+    Then fresh Xray details are fetched and I see its Gherkin with syntax highlighting and no edit controls
+    And the detail response is not persisted
+
+  Scenario: Lightweight test list
+    When I browse tests before opening them
+    Then I see only each test's key, name, and folder
 
   Scenario: Content is rendered safely
     Given a test summary contains "<img src=x onerror=alert(1)>"
@@ -77,5 +78,5 @@ Feature: Browse test repository
 
 ## Story-specific done checks
 
-- [ ] No `v-html` on user/Xray-provided content (lint rule `vue/no-v-html` enabled)
-- [ ] Axe accessibility check in the e2e spec has no serious violations
+- [x] No `v-html` on user/Xray-provided content (lint rule `vue/no-v-html` enabled)
+- [x] Axe accessibility check in the e2e spec has no serious violations

@@ -1,0 +1,10 @@
+query GetFolderTree($projectId: String!, $path: String!) {
+  getFolder(projectId: $projectId, path: $path) {
+    name
+    path
+    testsCount
+    preconditionsCount
+    issuesCount
+    folders
+  }
+}

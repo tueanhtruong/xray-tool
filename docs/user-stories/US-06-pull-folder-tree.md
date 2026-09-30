@@ -72,4 +72,4 @@ Feature: Pull folder tree
 
 ## Story-specific done checks
 
-- [ ] Pull emits structured log events: start, counts (created/updated/deleted), duration, requestId
+- [x] Pull emits structured log events: start, counts (created/updated/deleted), duration, requestId

@@ -57,8 +57,10 @@ curl -X POST http://localhost:4010/__control \
 curl http://localhost:4010/__control
 ```
 
-The control route is intended for local/test mock use only. Test identities, sites, and tokens are
-obviously fake.
+The Xray controls include folder fixtures (`empty`, `flat`, `deep`, `large`), folder failure path,
+test fixtures (`empty`, `five`, `large`), page failure offset, and optional request delay in
+milliseconds. The control route is intended for local/test mock use only. Test identities, sites,
+and tokens are obviously fake.
 
 ### API-token scenario
 

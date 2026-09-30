@@ -2,6 +2,37 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-09-30 — US-06/07/08 Test Repository workflow
+
+**Revised behavior in progress**
+
+- Replaced project-wide snapshot pulling with a key/name/folder test index; detail views fetch fresh Xray data on each open without storing it.
+- Editor selection fetches current details and creates/refreshes snapshots only when safe; changed remote state preserves an existing baseline while drafts exist.
+- Added an optional summary index column and made test type optional until details are selected; migration backfills summary for existing snapshots.
+- Updated US-07/US-08 scope and verification docs. `pnpm check`, pull/repository integration tests, and US-06/07/08 mock E2E specs pass. Read-only `pnpm test:live` passed against the configured sandbox (234 folders; 2,196 tests reported).
+
+**Done**
+
+- Verified Xray Cloud `getFolder` root-tree fields and `getTests` project pagination contract against the published schema and the supplied illustrative nested-folder response. Added an opt-in, read-only `pnpm test:live` contract check for a configured sandbox.
+- Implemented US-06 folder tree parsing, idempotent folder replacement, stale-folder removal, project-switch recheck, single-instance overlapping-pull rejection, folder APIs, and the workspace pull control.
+- Implemented US-07 paged full pull, atomic folders/tests/snapshots persistence, stable fingerprinting, request progress status, and remote-deleted draft retention.
+- Implemented US-08 cache-only paginated query APIs and `/repository` with filters, deep links, nested folder navigation, safe details/Jira links, selection entry point, and per-workspace expansion persistence.
+- Mock integration coverage for nested folder pull, idempotency, failures, concurrency, full snapshots/pagination, draft retention, filters, and 1,000-case query latency passes; US-06/07/08 e2e and Axe checks pass against mock.
+- `pnpm check` passes (lint, typecheck, 250 unit tests, production build).
+
+**In progress**
+
+- OpenSpec change `pull-and-browse-test-repository` revised implementation and mock verification are complete. Story verification/evidence has not been run because `pnpm verify` requires committed changes and a clean tree. US-06 remains `active` under WIP=1.
+
+**Next**
+
+- Review and commit the revised implementation according to the one-story-at-a-time commit convention, then run `pnpm verify US-06`, followed by US-07 and US-08 when their dependencies are passing.
+- Commit the US-06/07/08 implementation and run `pnpm verify US-06`, then continue in dependency order with US-07 and US-08.
+
+**Open questions**
+
+- Pull coordination and status are process-local in v1, per the selected single-instance deployment scope.
+
 ## 2026-09-30 — US-05 Jira/Xray project selection
 
 **Follow-up in progress — finish-us-05**
