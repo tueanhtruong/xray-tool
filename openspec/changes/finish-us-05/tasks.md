@@ -18,4 +18,4 @@
 ## 4. Reconcile story and architecture records
 
 - [x] 4.1 Update architecture/integration documentation with the agreed workspace/project ownership and cleanup extension contract for US-06, US-07, and US-09.
-- [ ] 4.2 Update US-05's state and progress entry to reflect implementation and verification status; do not mark the story passing manually—run `pnpm verify US-05` after the implementation is committed.
+- [x] 4.2 Update US-05's state and progress entry to reflect implementation and verification status; do not mark the story passing manually—run `pnpm verify US-05` after the implementation is committed.
