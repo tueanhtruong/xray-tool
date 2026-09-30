@@ -19,7 +19,7 @@
 - [x] 3.3 Implement full-pull staging, progress reporting, and one atomic folder/test/snapshot cache replacement; preserve the prior generation on remote, validation, persistence, or project-identity failure, and preserve/mark remotely deleted tests that have local drafts while deleting stale tests without drafts.
 - [x] 3.4 Add authenticated full-pull start and polling-status APIs with workspace/project isolation, sanitized terminal outcomes, and fetched/total counts.
 - [x] 3.5 Add integration tests for exact snapshots, pagination, deletions, Manual/Generic read-only metadata, all-or-nothing failure, workspace/project isolation, draft preservation, and progress; verify the large-project cached query performance target.
-- [ ] 3.6 Update architecture documentation with remote/snapshot/draft roles, fingerprint normalization, pull consistency, and the verified GraphQL queries; run any required sandbox `test:live` contract check. (Docs and read-only contract check are implemented; live sandbox execution awaits sandbox credentials/project ID.)
+- [x] 3.6 Update architecture documentation with remote/snapshot/draft roles, fingerprint normalization, pull consistency, and the verified GraphQL queries; run any required sandbox `test:live` contract check. (Read-only sandbox check passed 2026-10-01: 234 folders; getTests total 2196.)
 
 ## 4. Implement US-08 repository browser
 
@@ -31,7 +31,7 @@
 ## 5. Complete verification and handoff
 
 - [x] 5.1 Run the story verification commands in dependency order (US-06, US-07, US-08), `pnpm check`, and relevant end-to-end specs against the mock target; resolve failures.
-- [ ] 5.2 Update `docs/progress.md` and story state/evidence only through the prescribed verification workflow, ensure the session exit checklist is complete, and commit each story with its required message.
+- [x] 5.2 Update `docs/progress.md` and story state/evidence only through the prescribed verification workflow, ensure the session exit checklist is complete, and commit each story with its required message.
 
 ## 6. Revise repository pull for lightweight indexing and on-demand details
 
@@ -45,4 +45,4 @@
 ## 7. Reverify the revised repository behavior
 
 - [x] 7.1 Run `pnpm check` and the relevant pull, repository-query, editor-selection integration and browser checks against the mock target; resolve failures against the revised requirements.
-- [ ] 7.2 Update progress/story verification evidence for the revised behavior and complete the session handoff checklist.
+- [x] 7.2 Update progress/story verification evidence for the revised behavior and complete the session handoff checklist.

@@ -2,14 +2,38 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-01 — US-06/07/08 Test Repository verification handoff
+
+**Done**
+
+- Read-only `pnpm test:live` passed against the configured sandbox: 234 folders and `getTests` total of 2,196.
+- Committed the US-06/07/08 repository implementation as `9e28b30676496deb86f7d285f14210c7dc8e2902` (`US-06: add Xray repository pull and browse`).
+- `pnpm verify US-06` passed; committed its evidence as `62551d7` (`US-06: mark passing`).
+- `pnpm verify US-07` passed; committed its evidence as `a3644e9` (`US-07: mark passing`).
+- `pnpm verify US-08` passed; committed its evidence as `c888c22` (`US-08: mark passing`).
+- `openspec validate --specs` passes (16 specs). The `test-repository` main capability spec has been synced.
+
+**In progress**
+
+- None for US-06/07/08. All three stories are `passing`; WIP is available for the next eligible story.
+
+**Next**
+
+- Continue with the lowest-ID eligible story after US-08, following the dependency and WIP rules.
+- Unrelated `refer/template/` UI reference files are preserved in a local git stash and were not included in the story commits.
+
+**Open questions**
+
+- Pull coordination and status are process-local in v1, per the selected single-instance deployment scope.
+
 ## 2026-09-30 — US-06/07/08 Test Repository workflow
 
-**Revised behavior in progress**
+**Revised behavior delivered**
 
 - Replaced project-wide snapshot pulling with a key/name/folder test index; detail views fetch fresh Xray data on each open without storing it.
 - Editor selection fetches current details and creates/refreshes snapshots only when safe; changed remote state preserves an existing baseline while drafts exist.
 - Added an optional summary index column and made test type optional until details are selected; migration backfills summary for existing snapshots.
-- Updated US-07/US-08 scope and verification docs. `pnpm check`, pull/repository integration tests, and US-06/07/08 mock E2E specs pass. Read-only `pnpm test:live` passed against the configured sandbox (234 folders; 2,196 tests reported).
+- Updated US-07/US-08 scope and verification docs. `pnpm check`, pull/repository integration tests, and US-06/07/08 mock E2E specs passed; the sandbox contract result is recorded in the newer handoff entry above.
 
 **Done**
 
@@ -19,15 +43,6 @@ Newest entry first. One entry per session: done, in progress, next, open questio
 - Implemented US-08 cache-only paginated query APIs and `/repository` with filters, deep links, nested folder navigation, safe details/Jira links, selection entry point, and per-workspace expansion persistence.
 - Mock integration coverage for nested folder pull, idempotency, failures, concurrency, full snapshots/pagination, draft retention, filters, and 1,000-case query latency passes; US-06/07/08 e2e and Axe checks pass against mock.
 - `pnpm check` passes (lint, typecheck, 250 unit tests, production build).
-
-**In progress**
-
-- OpenSpec change `pull-and-browse-test-repository` revised implementation and mock verification are complete. Story verification/evidence has not been run because `pnpm verify` requires committed changes and a clean tree. US-06 remains `active` under WIP=1.
-
-**Next**
-
-- Review and commit the revised implementation according to the one-story-at-a-time commit convention, then run `pnpm verify US-06`, followed by US-07 and US-08 when their dependencies are passing.
-- Commit the US-06/07/08 implementation and run `pnpm verify US-06`, then continue in dependency order with US-07 and US-08.
 
 **Open questions**
 
