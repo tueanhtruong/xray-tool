@@ -2,12 +2,7 @@
   "$comment": "Source of truth for story scope and state. Agents may set not_started->active and active<->blocked. Only `pnpm verify US-XX` may set passing and evidence. WIP=1: at most one story is active.",
   "rules": {
     "wipLimit": 1,
-    "states": [
-      "not_started",
-      "active",
-      "blocked",
-      "passing"
-    ],
+    "states": ["not_started", "active", "blocked", "passing"],
     "passingSetBy": "pnpm verify <id>"
   },
   "stories": [
@@ -57,9 +52,7 @@
       "id": "US-01",
       "title": "Security foundation: encryption, redacted logging, request IDs",
       "file": "US-01-security-foundation.md",
-      "dependsOn": [
-        "US-00"
-      ],
+      "dependsOn": ["US-00"],
       "behavior": "AES-256-GCM secret encryption with versioned format; logger redacts secrets at any depth; sanitized error responses; x-request-id on every response.",
       "verification": [
         "pnpm check",
@@ -96,9 +89,7 @@
       "id": "US-02",
       "title": "Sign in with Jira OAuth 2.0 (3LO)",
       "file": "US-02-jira-oauth-sign-in.md",
-      "dependsOn": [
-        "US-01"
-      ],
+      "dependsOn": ["US-01"],
       "behavior": "User signs in via Atlassian OAuth with state validation; tokens stored encrypted and auto-refreshed single-flight; tokens never reach the browser.",
       "verification": [
         "pnpm check",
@@ -135,9 +126,7 @@
       "id": "US-03",
       "title": "Sign in with Jira email + API token (fallback)",
       "file": "US-03-jira-api-token-fallback.md",
-      "dependsOn": [
-        "US-02"
-      ],
+      "dependsOn": ["US-02"],
       "behavior": "User connects with site URL + email + API token validated via /myself; SSRF-safe site URL; same Jira client interface as OAuth.",
       "verification": [
         "pnpm check",
@@ -174,9 +163,7 @@
       "id": "US-04",
       "title": "Xray Cloud credentials & JWT exchange",
       "file": "US-04-xray-credentials-and-jwt.md",
-      "dependsOn": [
-        "US-02"
-      ],
+      "dependsOn": ["US-02"],
       "behavior": "Xray client ID/secret verified then stored encrypted; JWT cached server-side until near expiry; 401 re-auth and 429 backoff in the GraphQL client.",
       "verification": [
         "pnpm check",
@@ -213,10 +200,7 @@
       "id": "US-05",
       "title": "Select Jira/Xray project for the workspace",
       "file": "US-05-jira-project-selection.md",
-      "dependsOn": [
-        "US-03",
-        "US-04"
-      ],
+      "dependsOn": ["US-03", "US-04"],
       "behavior": "User picks a Jira project; numeric project ID stored; Xray access probed; project change blocked while drafts exist.",
       "verification": [
         "pnpm check",
@@ -248,25 +232,39 @@
       "id": "US-06",
       "title": "Pull Xray folder tree into local cache",
       "file": "US-06-pull-folder-tree.md",
-      "dependsOn": [
-        "US-05"
-      ],
+      "dependsOn": ["US-05"],
       "behavior": "Full folder tree pulled transactionally and idempotently; remote deletions reflected; concurrent pulls rejected.",
       "verification": [
         "pnpm check",
         "pnpm test:int tests/integration/pull-folders.test.ts",
         "pnpm test:e2e e2e/us-06-pull-folders.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "9e28b30676496deb86f7d285f14210c7dc8e2902",
+        "verifiedAt": "2026-09-30T17:04:47.277Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 18975
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/pull-folders.test.ts",
+            "durationMs": 2794
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-06-pull-folders.spec.ts",
+            "durationMs": 5076
+          }
+        ]
+      }
     },
     {
       "id": "US-07",
       "title": "Pull lightweight test index; load details on demand",
       "file": "US-07-pull-test-cases.md",
-      "dependsOn": [
-        "US-06"
-      ],
+      "dependsOn": ["US-06"],
       "behavior": "Paginated pull caches only issue identity, key, name and folder; current details load on every open, while editor selection creates or safely refreshes snapshots and preserves changed draft baselines.",
       "verification": [
         "pnpm check",
@@ -281,9 +279,7 @@
       "id": "US-08",
       "title": "Browse the cached Test Repository",
       "file": "US-08-test-repository-browser.md",
-      "dependsOn": [
-        "US-07"
-      ],
+      "dependsOn": ["US-07"],
       "behavior": "Folder tree + lightweight key/name/folder list with search and deep links; opening fetches current uncached details, and editor selection loads details and prepares safe snapshots.",
       "verification": [
         "pnpm check",
@@ -297,9 +293,7 @@
       "id": "US-09",
       "title": "Bulk editor grid with local drafts",
       "file": "US-09-bulk-editor-grid.md",
-      "dependsOn": [
-        "US-08"
-      ],
+      "dependsOn": ["US-08"],
       "behavior": "Virtualized grid edits summary/labels/status as server-side drafts with autosave, validation, undo; no remote writes; no-op edits remove drafts.",
       "verification": [
         "pnpm check",
@@ -314,9 +308,7 @@
       "id": "US-10",
       "title": "Bulk actions across a selection",
       "file": "US-10-bulk-actions.md",
-      "dependsOn": [
-        "US-09"
-      ],
+      "dependsOn": ["US-09"],
       "behavior": "Add/remove/rename labels, set status, find & replace (ReDoS-safe) across a selection with preview, single-step undo, drafts only.",
       "verification": [
         "pnpm check",
@@ -331,14 +323,9 @@
       "id": "US-11",
       "title": "Gherkin Markdown parser & serializer (library)",
       "file": "US-11-gherkin-markdown-parser.md",
-      "dependsOn": [
-        "US-09"
-      ],
+      "dependsOn": ["US-09"],
       "behavior": "Parses .md with gherkin fences or raw Gherkin into features/scenarios; maps scenarios to test case fields; canonical serializer round-trips losslessly; located errors.",
-      "verification": [
-        "pnpm check",
-        "pnpm test:unit tests/unit/gherkin-md"
-      ],
+      "verification": ["pnpm check", "pnpm test:unit tests/unit/gherkin-md"],
       "state": "not_started",
       "evidence": null
     },
@@ -346,10 +333,7 @@
       "id": "US-12",
       "title": "Gherkin steps editor",
       "file": "US-12-gherkin-steps-editor.md",
-      "dependsOn": [
-        "US-09",
-        "US-11"
-      ],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Code editor with Gherkin highlighting, completion, live parser validation, compare-with-Xray, saves Gherkin draft.",
       "verification": [
         "pnpm check",
@@ -363,10 +347,7 @@
       "id": "US-13",
       "title": "Import test cases from Markdown",
       "file": "US-13-markdown-import.md",
-      "dependsOn": [
-        "US-09",
-        "US-11"
-      ],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Upload .md, preview Update/Unchanged/Create/Error per scenario, confirm into drafts and new local tests; never writes to Xray.",
       "verification": [
         "pnpm check",
@@ -381,10 +362,7 @@
       "id": "US-14",
       "title": "Export test cases to Markdown",
       "file": "US-14-markdown-export.md",
-      "dependsOn": [
-        "US-09",
-        "US-11"
-      ],
+      "dependsOn": ["US-09", "US-11"],
       "behavior": "Export selection/folder/drafted tests as Local or Xray version to canonical .md grouped by folder; export then import is a no-op.",
       "verification": [
         "pnpm check",
@@ -399,14 +377,9 @@
       "id": "US-15",
       "title": "Field-level diff engine (library)",
       "file": "US-15-diff-engine.md",
-      "dependsOn": [
-        "US-07"
-      ],
+      "dependsOn": ["US-07"],
       "behavior": "Deterministic field-level diff (summary, label sets, status, Gherkin hunks) with normalization and a data-only sync plan.",
-      "verification": [
-        "pnpm check",
-        "pnpm test:unit tests/unit/diff"
-      ],
+      "verification": ["pnpm check", "pnpm test:unit tests/unit/diff"],
       "state": "not_started",
       "evidence": null
     },
@@ -414,10 +387,7 @@
       "id": "US-16",
       "title": "Review changes before sync",
       "file": "US-16-diff-review-ui.md",
-      "dependsOn": [
-        "US-13",
-        "US-15"
-      ],
+      "dependsOn": ["US-13", "US-15"],
       "behavior": "Review page shows every pending change as a diff, include/exclude and discard per test, confirmation freezes a PENDING SyncBatch.",
       "verification": [
         "pnpm check",
@@ -431,9 +401,7 @@
       "id": "US-17",
       "title": "Detect and resolve remote conflicts",
       "file": "US-17-conflict-detection.md",
-      "dependsOn": [
-        "US-16"
-      ],
+      "dependsOn": ["US-16"],
       "behavior": "Three-way base/remote/local classification: clean, auto-rebase, field conflict, deleted remotely; resolution UI; pull never destroys drafts.",
       "verification": [
         "pnpm check",
@@ -448,9 +416,7 @@
       "id": "US-18",
       "title": "Sync edits of existing tests to Xray/Jira",
       "file": "US-18-sync-update-existing.md",
-      "dependsOn": [
-        "US-17"
-      ],
+      "dependsOn": ["US-17"],
       "behavior": "Executes a frozen SyncBatch: conflict pre-check, Jira field update, status transition, Xray Gherkin update, re-snapshot; per-item results; idempotent re-run.",
       "verification": [
         "pnpm check",
@@ -464,9 +430,7 @@
       "id": "US-19",
       "title": "Create new tests in Xray from imports",
       "file": "US-19-sync-create-new-tests.md",
-      "dependsOn": [
-        "US-18"
-      ],
+      "dependsOn": ["US-18"],
       "behavior": "Creates Cucumber tests (and missing folders) for imported scenarios, stores returned keys, prevents duplicates on interrupted creates, offers updated Markdown with @xray tags.",
       "verification": [
         "pnpm check",
@@ -480,9 +444,7 @@
       "id": "US-20",
       "title": "Sync history & audit log",
       "file": "US-20-sync-history-audit.md",
-      "dependsOn": [
-        "US-18"
-      ],
+      "dependsOn": ["US-18"],
       "behavior": "History of sync and import batches with applied diffs, errors, retry-failed flow, filters and idempotent retention cleanup; no secrets stored.",
       "verification": [
         "pnpm check",
@@ -496,13 +458,7 @@
       "id": "US-21",
       "title": "End-to-end golden path & release readiness",
       "file": "US-21-e2e-golden-path-release.md",
-      "dependsOn": [
-        "US-10",
-        "US-12",
-        "US-14",
-        "US-19",
-        "US-20"
-      ],
+      "dependsOn": ["US-10", "US-12", "US-14", "US-19", "US-20"],
       "behavior": "Full journey sign-in -> pull -> edit -> import -> conflict -> review -> sync -> export -> re-import passes on a fresh DB; no secret leaks; production container healthy.",
       "verification": [
         "pnpm check",
