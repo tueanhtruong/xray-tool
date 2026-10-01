@@ -103,7 +103,7 @@ The system SHALL expose authenticated, project-scoped APIs for the cached folder
 - **THEN** the API rejects it without returning project data
 
 ### Requirement: Browse the lightweight Test Repository index
-The system SHALL provide a `/repository` page with a 260 px folder sidebar and a main area, stacked below 800 px width. The sidebar SHALL show an "All tests" root and a navigable folder tree with per-folder test counts, SHALL be keyboard operable (arrow keys move, Enter selects, Left/Right collapse and expand), and SHALL contain the pull action and progress. The main area SHALL show a toolbar with key/name search, result count, and an include-subfolders toggle, and a paginated test list backed by the cached index APIs. The list SHALL show only a selection checkbox, key, name/summary, and folder location until details are requested; its header checkbox SHALL select all visible rows, and it SHALL scroll horizontally inside its own container on narrow screens. The key SHALL link to `/tests/<key>`. The page SHALL preserve folder and search in the URL so reloads and browser navigation restore the same query, and SHALL remember folder expansion per workspace. The page SHALL show last-pulled time, pull progress, a loading skeleton while data loads, an actionable error with retry when loading fails, and empty states for never-pulled, empty-folder, and no-results cases. The page SHALL NOT show labels, status, draft, or review elements.
+The system SHALL provide a `/repository` page with a folder sidebar that is 260 px wide by default on viewports at least 800 px wide, adjustable by the owner between 150 px and 500 px, and a main area. The layout SHALL remain stacked below 800 px. The sidebar SHALL show an "All tests" root and a navigable folder tree with each folder's direct test count. When descendant folders contain additional tests, the folder SHALL also show the inclusive count of tests in itself and all descendants in parentheses. Inclusive counts SHALL be computed independently of which folders are expanded. The folder tree SHALL have a clearly visible expand/collapse chevron and SHALL be keyboard operable (arrow keys move, Enter selects, Left/Right collapse and expand). The sidebar SHALL contain the pull action and progress. Its resize separator SHALL be operable by pointer and keyboard and SHALL expose separator orientation and current, minimum, and maximum values to assistive technology. The main area SHALL show a toolbar with key/name search, result count, and an include-subfolders toggle, and a paginated test list backed by the cached index APIs. The list SHALL show only a selection checkbox, key, name/summary, and folder location until details are requested; its header checkbox SHALL select all visible rows, and it SHALL scroll horizontally inside its own container on narrow screens. The key SHALL link to `/tests/<key>`. The page SHALL preserve folder and search in the URL so reloads and browser navigation restore the same query, and SHALL remember folder expansion per workspace. The page SHALL show last-pulled time, pull progress, a loading skeleton while data loads, an actionable error with retry when loading fails, and empty states for never-pulled, empty-folder, and no-results cases. The page SHALL NOT show labels, status, draft, or review elements.
 
 #### Scenario: Browse a folder and its descendants
 - **WHEN** the owner selects a folder and then enables inclusion of subfolders
@@ -148,6 +148,35 @@ The system SHALL provide a `/repository` page with a 260 px folder sidebar and a
 - **THEN** a loading skeleton is shown
 - **WHEN** the test list request fails
 - **THEN** an actionable error with a retry action is shown
+
+#### Scenario: Show direct and inclusive folder test counts
+- **WHEN** a folder contains 2 tests directly and its descendants contain 7 tests in total
+- **THEN** the folder shows its direct count and the inclusive count as `2 (9)`
+- **AND** the inclusive count is correct whether or not the descendant folders are expanded
+
+#### Scenario: Avoid repeating a folder count without descendant tests
+- **WHEN** a folder has no tests in its descendants
+- **THEN** the folder shows its direct test count without a duplicate inclusive count
+
+#### Scenario: Make folder expansion state visible
+- **WHEN** the owner views a folder that can be expanded or collapsed
+- **THEN** a chevron icon visibly distinguishes its expanded and collapsed states
+- **AND** folders without children do not display a disclosure icon
+
+#### Scenario: Resize the desktop folder sidebar within bounds
+- **WHEN** the owner drags the sidebar separator toward either edge
+- **THEN** the sidebar width changes but never becomes less than 150 px or greater than 500 px
+- **AND** the main area remains usable without horizontal overlap
+
+#### Scenario: Resize the folder sidebar by keyboard
+- **WHEN** the owner focuses the resize separator and presses its supported arrow keys
+- **THEN** the sidebar width changes within the same 150–500 px bounds
+- **AND** assistive technology can read the separator's current, minimum, and maximum values
+
+#### Scenario: Keep the stacked layout on narrow screens
+- **WHEN** the repository is displayed below 800 px wide
+- **THEN** the folder sidebar and main area remain stacked
+- **AND** the desktop resize separator is not presented as an active control
 
 ### Requirement: Fetch fresh safe test details and prepare editor selections
 When an owner opens a test on its own page, the system SHALL fetch the current full test details from Xray on every open and SHALL NOT persist the detail response as a side effect of viewing. Details SHALL include summary, labels, status, type, and Gherkin when applicable; non-Cucumber tests SHALL be identified as read-only. When an owner selects a test for the editor, the system SHALL fetch full current details for the selected test and compare the result with any existing snapshot before updating it. If no snapshot exists, the system SHALL create one from the fetched remote state. If the fetched remote state is unchanged, the system SHALL leave the snapshot unchanged. If the remote state changed and no local draft exists, the system SHALL update the snapshot to the fetched remote state. If a local draft exists and the remote state changed, the system SHALL preserve the existing snapshot baseline and draft for conflict handling. Jira-provided text SHALL be rendered as text, not executable markup. An Open in Jira link SHALL use the active workspace's stored site URL and a stored test key, with `target="_blank"` and `rel="noopener noreferrer"`. The list's selection bar SHALL show the number selected, a Clear action, and an "Open in editor" action that is enabled only when exactly one test is selected; it SHALL prepare the snapshot as above and then open that test's page, without implementing editing in this capability.

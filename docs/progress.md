@@ -2,6 +2,25 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-01 — Repository folder sidebar enhancement
+
+**Done**
+
+- Implemented OpenSpec change `enhance-repository-folder-sidebar`: direct and inclusive recursive folder counts, local Lucide disclosure chevrons, and a pointer/keyboard-resizable desktop sidebar with 150–500 px bounds.
+- Verification: repository-browser E2E (6 tests) and `pnpm check` pass.
+
+**In progress**
+
+- None.
+
+**Next**
+
+- Continue with US-09 (bulk editor grid), the next eligible product story.
+
+**Open questions**
+
+- None.
+
 ## 2026-10-01 — US-08.1 UI redesign implemented and verified
 
 **Done**

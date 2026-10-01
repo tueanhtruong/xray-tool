@@ -10,6 +10,7 @@ interface VisibleRow {
   path: string
   name: string
   count: number | null
+  inclusiveCount: number | null
   level: number
   parent: string | null
   hasChildren: boolean
@@ -29,9 +30,30 @@ const emit = defineEmits<{
 
 const ROOT = '/'
 
+const inclusiveCounts = computed(() => {
+  const counts = new Map<string, number>()
+  const sumFolderCounts = (nodes: FolderNode[]): number =>
+    nodes.reduce((parentTotal, node) => {
+      const subtreeTotal = node.remoteTestsCount + sumFolderCounts(node.folders)
+      counts.set(node.path, subtreeTotal)
+      return parentTotal + subtreeTotal
+    }, 0)
+  sumFolderCounts(props.folders)
+  return counts
+})
+
 const rows = computed<VisibleRow[]>(() => {
   const result: VisibleRow[] = [
-    { path: ROOT, name: 'All tests', count: null, level: 1, parent: null, hasChildren: false, expanded: false },
+    {
+      path: ROOT,
+      name: 'All tests',
+      count: null,
+      inclusiveCount: null,
+      level: 1,
+      parent: null,
+      hasChildren: false,
+      expanded: false,
+    },
   ]
   const walk = (nodes: FolderNode[], level: number, parent: string) => {
     for (const node of nodes) {
@@ -40,6 +62,7 @@ const rows = computed<VisibleRow[]>(() => {
         path: node.path,
         name: node.name,
         count: node.remoteTestsCount,
+        inclusiveCount: inclusiveCounts.value.get(node.path) ?? node.remoteTestsCount,
         level,
         parent,
         hasChildren: node.folders.length > 0,
@@ -138,16 +161,27 @@ function onClick(row: VisibleRow) {
         @click="onClick(row)"
         @keydown="onKeydown($event, row)"
       >
-        <span class="flex min-w-0 items-center gap-1">
-          <span
-            class="inline-block w-4 shrink-0 text-center text-muted"
+        <span class="flex min-w-0 items-center gap-2">
+          <UIcon
+            v-if="row.hasChildren"
+            :name="row.expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            class="size-5 shrink-0 text-muted"
             aria-hidden="true"
+            data-testid="folder-disclosure"
             @click.stop="row.hasChildren && emit('toggle', row.path)"
-            >{{ row.hasChildren ? (row.expanded ? '▾' : '▸') : '' }}</span
-          >
+          />
           <span class="truncate">{{ row.name }}</span>
         </span>
-        <span v-if="row.count !== null" class="text-xs" :class="effectiveSelected === row.path ? '' : 'text-muted'">{{ row.count }}</span>
+        <span
+          v-if="row.count !== null"
+          class="text-xs"
+          :class="effectiveSelected === row.path ? '' : 'text-muted'"
+        >
+          {{ row.count
+          }}<span v-if="row.inclusiveCount !== null && row.inclusiveCount > row.count" class="ml-1"
+            >({{ row.inclusiveCount }})</span
+          >
+        </span>
       </li>
     </ul>
   </nav>

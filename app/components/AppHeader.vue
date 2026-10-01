@@ -18,7 +18,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside))
 
 <template>
   <header
-    class="sticky z-10 border-b border-default bg-elevated"
+    class="sticky z-10 border-b border-default bg-elevated h-[3.25rem]"
     style="top: env(safe-area-inset-top, 0px)"
   >
     <div class="flex flex-wrap items-center gap-3 px-5 py-2.5">
@@ -31,7 +31,10 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside))
         class="flex items-center gap-2 text-muted"
         data-testid="header-project"
       >
-        <span>{{ workspace.jiraProjectKey }}<span v-if="workspace.jiraProjectName"> · {{ workspace.jiraProjectName }}</span></span>
+        <span
+          >{{ workspace.jiraProjectKey
+          }}<span v-if="workspace.jiraProjectName"> · {{ workspace.jiraProjectName }}</span></span
+        >
         <template v-if="workspace.projectReady">
           <span aria-hidden="true">›</span>
           <NuxtLink to="/repository" class="hover:text-highlighted">Repository</NuxtLink>

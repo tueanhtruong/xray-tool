@@ -37,9 +37,15 @@ useHead({ title: computed(() => `${key.value} · XrayBulk`) })
 </script>
 
 <template>
-  <main class="mx-auto grid max-w-[1300px] grid-cols-1 gap-4 px-5 py-4 min-[800px]:grid-cols-[300px_1fr]">
+  <main
+    class="mx-auto grid max-w-[1800px] grid-cols-1 gap-4 px-5 py-4 min-[800px]:grid-cols-[300px_1fr]"
+  >
     <div>
-      <NuxtLink :to="backTo" class="text-muted hover:text-highlighted" data-testid="back-to-repository">
+      <NuxtLink
+        :to="backTo"
+        class="text-muted hover:text-highlighted"
+        data-testid="back-to-repository"
+      >
         ← Back to repository
       </NuxtLink>
     </div>
@@ -52,8 +58,13 @@ useHead({ title: computed(() => `${key.value} · XrayBulk`) })
     />
 
     <PageCard v-else-if="notFound" class="min-[800px]:col-span-2" data-testid="test-not-found">
-      <EmptyState title="Test not found" :description="`${key} is not in the cached index for this project.`">
-        <NuxtLink :to="backTo" class="font-medium text-primary underline">Back to repository</NuxtLink>
+      <EmptyState
+        title="Test not found"
+        :description="`${key} is not in the cached index for this project.`"
+      >
+        <NuxtLink :to="backTo" class="font-medium text-primary underline"
+          >Back to repository</NuxtLink
+        >
       </EmptyState>
     </PageCard>
 
@@ -102,7 +113,7 @@ useHead({ title: computed(() => `${key.value} · XrayBulk`) })
         >
       </PageCard>
 
-      <PageCard title="Gherkin steps" data-testid="test-gherkin">
+      <PageCard title="Gherkin steps" data-testid="test-gherkin" class="overflow-auto">
         <GherkinCode :source="data.gherkin ?? 'No Gherkin definition'" />
       </PageCard>
     </template>
