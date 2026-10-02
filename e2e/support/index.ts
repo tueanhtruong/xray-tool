@@ -6,8 +6,12 @@ export async function control(request: APIRequestContext, body: Record<string, u
   await request.post(new URL('/__control', mockServicesUrl()).toString(), { data: body })
 }
 
-export async function mockState<T = Record<string, number | string>>(request: APIRequestContext): Promise<T> {
-  return (await (await request.get(new URL('/__control', mockServicesUrl()).toString())).json()) as T
+export async function mockState<T = Record<string, number | string>>(
+  request: APIRequestContext,
+): Promise<T> {
+  return (await (
+    await request.get(new URL('/__control', mockServicesUrl()).toString())
+  ).json()) as T
 }
 
 /** Number of requests the mock has seen that would modify remote Jira/Xray data. */
@@ -51,6 +55,9 @@ export async function connectXrayAndSelectProject(page: Page) {
     .filter({ hasText: 'ONEDS' })
     .getByRole('button')
     .click()
+  const repositoryLink = page.getByTestId('repository-link').first()
+  await expect(repositoryLink).toBeVisible()
+  await repositoryLink.click()
   await expect(page).toHaveURL(/project=/)
 }
 
