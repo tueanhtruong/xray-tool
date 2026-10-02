@@ -383,8 +383,30 @@
         "pnpm test:int tests/integration/project-cache.test.ts",
         "pnpm test:e2e e2e/us-08-2-multi-project-repository.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "2382de0a615822adb3a03b7c4d7618e682d61535",
+        "verifiedAt": "2026-10-02T02:58:00.921Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 29731
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/project-selection.test.ts",
+            "durationMs": 3128
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/project-cache.test.ts",
+            "durationMs": 2732
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-08-2-multi-project-repository.spec.ts",
+            "durationMs": 9235
+          }
+        ]
+      }
     },
     {
       "id": "US-09",
