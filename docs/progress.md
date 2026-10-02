@@ -2,6 +2,52 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-01 — US-08.2 contract investigation and implementation setup
+
+**Done**
+
+- Activated Node 24 with nvm; `./scripts/init.sh` and `pnpm check` pass (lint, typecheck, 280 unit tests, build).
+- Extended `pnpm test:live` to paginate the complete sandbox index, introspect Xray `getTests` arguments, compare folder trees/indexes when optional second credentials are configured, and query a sampled folder subtree against full-project membership.
+- Current sandbox result: 234 folders, 2,196 tests; subtree `/data-table` returns the matching 14 tests with descendants. A folder query alone does not identify tests moved out or deleted, so full-project refresh remains the safe behavior.
+- Documented the conditional folder-refresh limitation and optional second-credential comparison inputs. The user accepts tenant/project cache equivalence as an implementation assumption and will manually verify it later; it is no longer a cutover gate.
+
+**In progress**
+
+- OpenSpec change `multi-project-repository`: implementation is in progress; shared-cache equivalence is an accepted assumption with manual verification deferred.
+
+**Next**
+
+- Continue US-08.2 shared project/cache implementation; manually compare a second authorized Xray credential later if available.
+
+**Open questions**
+
+- Whether independently authorized Xray keys expose equivalent complete folder/test indexes remains unverified and is accepted for implementation.
+- No safe folder-only reconciliation path is established; task 1.3 remains on the full-project-only branch.
+
+## 2026-10-01 — US-08.2 multi-project implementation underway
+
+**Done**
+
+- Added tenant-scoped `Project` and verified `WorkspaceProject` access records, project-owned cache rows, per-user drafts with immutable base columns, and same-project locking functions in the migration. Existing dev cache data was backfilled without changing its row counts (397 folders, 3,062 tests); a mode-600 recovery snapshot was saved outside the repo.
+- Converted project selection to additive authorization and repository/test/folder/detail APIs to check URL project context. Pull coordination and polling now key by project ID and persist to the captured project.
+- Added the header Jira project search picker, URL-based project switching, folder-refresh status feedback, explicit full-project refresh confirmation, per-project folder expansion preferences, and a current-user project draft list/switch choice flow.
+- Added `tests/integration/project-cache.test.ts` for tenant namespace separation, association checks, cross-project tab queries, and user-private drafts; migrated project-selection and repository integration fixtures to the new schema.
+- `pnpm lint`, `pnpm typecheck`, and all 280 unit tests pass. Focused project-selection/cache, pull, folder, and query integration suites passed (21 tests) before Postgres became unreachable.
+- `pnpm test:live` passes: 234 folders, 2,196 tests; sampled `/data-table` subtree returned the expected 14 tests. Folder-only refresh is omitted because moved-out/deleted reconciliation remains unverified.
+
+**In progress**
+
+- US-08.2 is `active`; remaining work includes legacy route fixture updates, complete multi-project E2E coverage, documentation updates, and full verification.
+
+**Next**
+
+- Restore local Postgres and run the updated US-08.2 E2E spec and full regression. Add remaining coverage for imported-test privacy, cross-user draft baselines/deletion visibility, and project-scoped concurrent pulls.
+
+**Open questions**
+
+- Local Postgres currently times out for both development and test databases; integration/E2E tests and `./scripts/init.sh` could not complete while it was unavailable.
+- Shared Xray cache equivalence across independently authorized API keys remains an accepted assumption; the optional second-key live check is available for later manual verification.
+
 ## 2026-10-01 — Repository folder sidebar enhancement
 
 **Done**

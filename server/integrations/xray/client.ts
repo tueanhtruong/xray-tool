@@ -474,8 +474,9 @@ export async function getXrayTestsPage(
 export async function getXrayTestDetailsByKey(
   workspaceId: string,
   key: string,
+  projectId?: string,
 ): Promise<XrayTestDetails> {
-  const result = await getXrayTestDetailsByKeys(workspaceId, [key])
+  const result = await getXrayTestDetailsByKeys(workspaceId, [key], projectId)
   const test = result[0]
   if (!test) throw new XrayError('Xray did not return the requested test details.', 404)
   return test
@@ -484,13 +485,15 @@ export async function getXrayTestDetailsByKey(
 export async function getXrayTestDetailsByKeys(
   workspaceId: string,
   keys: string[],
+  projectId?: string,
 ): Promise<XrayTestDetails[]> {
   if (keys.length < 1 || keys.length > 100 || keys.some((key) => !/^[A-Z][A-Z0-9_]*-\d+$/.test(key)) || new Set(keys).size !== keys.length) {
     throw new XrayError('Xray test keys are invalid.')
   }
-  const jql = keys.length === 1
+  const issueQuery = keys.length === 1
     ? `key = "${keys[0]}"`
     : `key in (${keys.map((key) => `"${key}"`).join(', ')})`
+  const jql = projectId ? `${issueQuery} AND project = ${projectId}` : issueQuery
   const result = await getWorkspaceXrayClient(workspaceId).graphql<{
     getTests: { results: XrayTestDetails[] } | null
   }>(GET_TEST_DETAILS_QUERY, { jql, limit: keys.length })

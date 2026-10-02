@@ -1,4 +1,4 @@
-import { ProjectSelectionError, requireWorkspaceProject } from '../../../services/project-selection'
+import { listWorkspaceProjects } from '../../../services/project-selection'
 import { getAppSession } from '../../../utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -9,11 +9,6 @@ export default defineEventHandler(async (event) => {
     select: { id: true },
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
-  try {
-    await requireWorkspaceProject(workspace.id)
-    return { ready: true }
-  } catch (error) {
-    if (error instanceof ProjectSelectionError) throw httpError(error.statusCode, error.message)
-    throw error
-  }
+  const projects = await listWorkspaceProjects(workspace.id)
+  return { ready: projects.length > 0, projects: projects.map(({ id }) => id) }
 })

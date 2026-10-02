@@ -43,6 +43,7 @@ describe('folder pull', () => {
   let server: RunningServer
   let mock: MockServicesHandle
   let cookie = ''
+  let projectId = ''
 
   beforeAll(async () => {
     mock = await startMockServices(mockUrl)
@@ -62,13 +63,13 @@ describe('folder pull', () => {
       body: JSON.stringify({ region: 'EU', clientId: 'mock-xray-client-id', clientSecret: 'mock-xray-client-secret' }),
     })
     await fetch(`${server.url}/api/jira/projects?q=ONEDS`, { headers: { cookie } })
-    await fetch(`${server.url}/api/project`, {
+    const selected = await fetch(`${server.url}/api/project`, {
       method: 'PUT',
       headers: { cookie, origin: server.url, 'content-type': 'application/json' },
       body: JSON.stringify({ projectId: '10001' }),
     })
-    const session = await (await fetch(`${server.url}/api/auth/session`, { headers: { cookie } })).json() as { workspace: { id: string } }
-    await queryRows(`DELETE FROM "Folder" WHERE "workspaceId"=$1`, [session.workspace.id])
+    projectId = ((await selected.json()) as { projectId: string }).projectId
+    await queryRows(`DELETE FROM "Folder" WHERE "projectId"=$1`, [projectId])
     await new Promise((resolve) => setTimeout(resolve, 25))
   })
 
@@ -78,7 +79,7 @@ describe('folder pull', () => {
   })
 
   it('pulls nested folders, deletes stale rows, and leaves unchanged rows untouched', async () => {
-    const response = await fetch(`${server.url}/api/pull/folders`, {
+    const response = await fetch(`${server.url}/api/pull/folders?project=${projectId}`, {
       method: 'POST', headers: { cookie, origin: server.url },
     })
     expect(response.status).toBe(200)
@@ -87,7 +88,7 @@ describe('folder pull', () => {
     let status: { state: string; message?: string } | undefined
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 20))
-      status = await (await fetch(`${server.url}/api/pull/status`, { headers: { cookie } })).json() as typeof status
+      status = await (await fetch(`${server.url}/api/pull/status?project=${projectId}`, { headers: { cookie } })).json() as typeof status
       if (status?.state !== 'running') break
     }
     expect(status).toMatchObject({ state: 'succeeded', message: 'Pulled 4 folders' })
@@ -96,7 +97,7 @@ describe('folder pull', () => {
     expect(server.output()).toContain('"created":4')
     expect(server.output()).toContain('"durationMs":')
     const rows = await queryRows<{ path: string; parentPath: string | null }>(
-      'SELECT path, "parentPath" FROM "Folder" ORDER BY path',
+      'SELECT path, "parentPath" FROM "Folder" WHERE "projectId"=$1 ORDER BY path', [projectId],
     )
     expect(rows).toEqual([
       { path: '/Autocomplete', parentPath: '/' },
@@ -104,51 +105,52 @@ describe('folder pull', () => {
       { path: '/Billing', parentPath: '/' },
       { path: '/Search', parentPath: '/' },
     ])
-    const before = await queryRows<{ pulledAt: Date }>('SELECT "pulledAt" FROM "Folder" ORDER BY path')
+    const before = await queryRows<{ pulledAt: Date }>('SELECT "pulledAt" FROM "Folder" WHERE "projectId"=$1 ORDER BY path', [projectId])
     await new Promise((resolve) => setTimeout(resolve, 5))
-    await fetch(`${server.url}/api/pull/folders`, { method: 'POST', headers: { cookie, origin: server.url } })
+    await fetch(`${server.url}/api/pull/folders?project=${projectId}`, { method: 'POST', headers: { cookie, origin: server.url } })
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 20))
-      status = await (await fetch(`${server.url}/api/pull/status`, { headers: { cookie } })).json() as typeof status
+      status = await (await fetch(`${server.url}/api/pull/status?project=${projectId}`, { headers: { cookie } })).json() as typeof status
       if (status?.state !== 'running') break
     }
-    const after = await queryRows<{ pulledAt: Date }>('SELECT "pulledAt" FROM "Folder" ORDER BY path')
+    const after = await queryRows<{ pulledAt: Date }>('SELECT "pulledAt" FROM "Folder" WHERE "projectId"=$1 ORDER BY path', [projectId])
     expect(after).toEqual(before)
     await control({ xrayFolderMode: 'empty' })
-    await fetch(`${server.url}/api/pull/folders`, { method: 'POST', headers: { cookie, origin: server.url } })
+    await fetch(`${server.url}/api/pull/folders?project=${projectId}`, { method: 'POST', headers: { cookie, origin: server.url } })
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 20))
-      status = await (await fetch(`${server.url}/api/pull/status`, { headers: { cookie } })).json() as typeof status
+      status = await (await fetch(`${server.url}/api/pull/status?project=${projectId}`, { headers: { cookie } })).json() as typeof status
       if (status?.state !== 'running') break
     }
-    expect(await queryRows('SELECT id FROM "Folder"')).toHaveLength(0)
+    expect(await queryRows('SELECT id FROM "Folder" WHERE "projectId"=$1', [projectId])).toHaveLength(0)
   })
 
   it('preserves the previous cache when a nested folder request fails', async () => {
     await control({ xrayFolderMode: 'flat', xrayFolderFailurePath: '' })
-    await fetch(`${server.url}/api/pull/folders`, { method: 'POST', headers: { cookie, origin: server.url } })
+    await fetch(`${server.url}/api/pull/folders?project=${projectId}`, { method: 'POST', headers: { cookie, origin: server.url } })
     await new Promise((resolve) => setTimeout(resolve, 100))
-    const before = await queryRows<{ path: string; pulledAt: Date }>('SELECT path, "pulledAt" FROM "Folder" ORDER BY path')
+    const before = await queryRows<{ path: string; pulledAt: Date }>('SELECT path, "pulledAt" FROM "Folder" WHERE "projectId"=$1 ORDER BY path', [projectId])
     await control({ xrayFolderMode: 'deep', xrayFolderFailurePath: '/Level1/Level2' })
-    await fetch(`${server.url}/api/pull/folders`, { method: 'POST', headers: { cookie, origin: server.url } })
+    await fetch(`${server.url}/api/pull/folders?project=${projectId}`, { method: 'POST', headers: { cookie, origin: server.url } })
     await new Promise((resolve) => setTimeout(resolve, 100))
-    const status = await (await fetch(`${server.url}/api/pull/status`, { headers: { cookie } })).json() as { state: string }
+    const status = await (await fetch(`${server.url}/api/pull/status?project=${projectId}`, { headers: { cookie } })).json() as { state: string }
     expect(status.state).toBe('failed')
-    expect(await queryRows<{ path: string; pulledAt: Date }>('SELECT path, "pulledAt" FROM "Folder" ORDER BY path')).toEqual(before)
+    expect(await queryRows<{ path: string; pulledAt: Date }>('SELECT path, "pulledAt" FROM "Folder" WHERE "projectId"=$1 ORDER BY path', [projectId])).toEqual(before)
     await control({ xrayFolderFailurePath: '' })
   })
 
   it('rejects an overlapping pull with 409 and does not allow status without a session', async () => {
     await control({ xrayFolderMode: 'large', xrayFolderFailurePath: '' })
-    const first = await fetch(`${server.url}/api/pull/folders`, {
+    const first = await fetch(`${server.url}/api/pull/folders?project=${projectId}`, {
       method: 'POST', headers: { cookie, origin: server.url },
     })
     expect(first.status).toBe(200)
-    const second = await fetch(`${server.url}/api/pull/folders`, {
+    const second = await fetch(`${server.url}/api/pull/folders?project=${projectId}`, {
       method: 'POST', headers: { cookie, origin: server.url },
     })
     expect(second.status).toBe(409)
     expect(await second.text()).toContain('A pull is already running')
+    expect((await fetch(`${server.url}/api/pull/status?project=${projectId}`, { headers: { cookie } })).status).toBe(200)
     expect((await fetch(`${server.url}/api/pull/status`)).status).toBe(401)
   })
 })

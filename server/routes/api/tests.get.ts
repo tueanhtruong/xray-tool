@@ -15,17 +15,23 @@ export default defineEventHandler(async (event) => {
   if (!session) throw httpError(401, 'Sign in to continue.')
   const workspace = await usePrisma().workspace.findFirst({
     where: { id: session.activeWorkspaceId, ownerId: session.userId },
-    select: { id: true, jiraProjectId: true, projectReadyAt: true },
+    select: { id: true },
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
-  if (!workspace.projectReadyAt || !workspace.jiraProjectId) throw httpError(409, 'Select and verify a Jira/Xray project before opening the test repository.')
   const parsed = querySchema.safeParse(getQuery(event))
   if (!parsed.success) throw httpError(400, 'Test query parameters are invalid.')
   const params = parsed.data
+  const projectId = getQuery(event).project
+  if (typeof projectId !== 'string') throw httpError(409, 'Choose a project before opening the test repository.')
+  const access = await usePrisma().workspaceProject.findFirst({
+    where: { workspaceId: workspace.id, projectId },
+    select: { id: true },
+  })
+  if (!access) throw httpError(404, 'Project not found or access is not authorized.')
   const where: Record<string, unknown> = {
-    workspaceId: workspace.id,
-    jiraProjectId: workspace.jiraProjectId,
+    projectId,
     origin: 'REMOTE',
+    remoteDeletedAt: null,
   }
   const and: Record<string, unknown>[] = []
   if (params.folder && params.includeDescendants === 'true') {

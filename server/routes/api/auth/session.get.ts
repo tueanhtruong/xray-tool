@@ -10,21 +10,32 @@ export default defineEventHandler(async (event) => {
       id: true,
       name: true,
       siteUrl: true,
-      jiraProjectKey: true,
-      jiraProjectId: true,
-      jiraProjectName: true,
-      projectReadyAt: true,
       jiraConnection: { select: { id: true } },
       xrayConnection: { select: { id: true } },
+      projectAccess: {
+        include: { project: true },
+        orderBy: { project: { jiraProjectKey: 'asc' } },
+      },
     },
   })
   if (!workspace) throw createError({ statusCode: 401, statusMessage: 'Sign in to continue.' })
   return {
+    userId: session.userId,
     workspace: {
-      ...workspace,
+      id: workspace.id,
+      name: workspace.name,
+      siteUrl: workspace.siteUrl,
       jiraConnected: Boolean(workspace.jiraConnection),
       xrayConnected: Boolean(workspace.xrayConnection),
-      projectReady: Boolean(workspace.projectReadyAt && workspace.jiraProjectId),
+      projects: workspace.projectAccess.map(({ project }) => ({
+        id: project.id,
+        jiraProjectId: project.jiraProjectId,
+        jiraProjectKey: project.jiraProjectKey,
+        jiraProjectName: project.jiraProjectName,
+        projectReadyAt: project.projectReadyAt,
+        foldersPulledAt: project.foldersPulledAt,
+      })),
+      legacyProject: workspace.projectAccess.length === 1 ? workspace.projectAccess[0]!.project.id : null,
       jiraConnection: undefined,
       xrayConnection: undefined,
     },

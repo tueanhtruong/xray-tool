@@ -24,6 +24,8 @@ model User {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   workspaces Workspace[]
+  drafts     TestCaseDraft[]
+  localTests TestCase[]
 }
 
 model Workspace {
@@ -46,8 +48,7 @@ model Workspace {
   owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   jiraConnection    JiraConnection?
   xrayConnection    XrayConnection?
-  folders           Folder[]
-  testCases         TestCase[]
+  projectAccess     WorkspaceProject[]
 
   @@unique([ownerId, cloudId])
   @@unique([ownerId, siteOrigin])
@@ -123,26 +124,66 @@ enum TestCaseOrigin {
   IMPORT
 }
 
+enum TenantIdentityKind {
+  CLOUD_ID
+  SITE_ORIGIN
+}
+
+model Project {
+  id                   String             @id @default(cuid())
+  tenantIdentityKind   TenantIdentityKind
+  tenantIdentity       String
+  jiraProjectId        String
+  jiraProjectKey       String
+  jiraProjectName      String
+  projectReadyAt       DateTime           @default(now())
+  testIssueTypeId      String
+  testIssueTypeName    String
+  projectStatuses      Json
+  foldersPulledAt      DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  workspaceAccess      WorkspaceProject[]
+  folders              Folder[]
+  testCases            TestCase[]
+
+  @@unique([tenantIdentityKind, tenantIdentity, jiraProjectId])
+  @@index([jiraProjectKey])
+}
+
+model WorkspaceProject {
+  id             String    @id @default(cuid())
+  workspaceId   String
+  projectId     String
+  verifiedAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, projectId])
+  @@index([projectId])
+}
+
 model Folder {
   id               String    @id @default(cuid())
-  workspaceId      String
-  jiraProjectId    String
+  workspaceId      String?
+  jiraProjectId    String?
+  projectId        String?
   path             String
   name             String
   parentPath       String?
   remoteTestsCount Int       @default(0)
   pulledAt         DateTime  @default(now())
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project          Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, path])
-  @@index([workspaceId, jiraProjectId])
+  @@unique([projectId, path])
 }
 
 model TestCase {
   id            String            @id @default(cuid())
-  workspaceId   String
-  jiraProjectId String
-  issueId       String
+  projectId     String?
+  ownerId       String?
+  issueId       String?
   key           String
   summary       String?
   testType      String?
@@ -151,13 +192,14 @@ model TestCase {
   remoteDeletedAt DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
-  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner         User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   snapshot      TestCaseSnapshot?
-  draft         TestCaseDraft?
+  drafts        TestCaseDraft[]
 
-  @@unique([workspaceId, issueId])
-  @@unique([workspaceId, key])
-  @@index([workspaceId, jiraProjectId])
+  @@unique([projectId, issueId])
+  @@unique([projectId, key])
+  @@index([ownerId, key])
 }
 
 model TestCaseSnapshot {
@@ -174,12 +216,24 @@ model TestCaseSnapshot {
 }
 
 model TestCaseDraft {
-  id         String   @id @default(cuid())
-  testCaseId String   @unique
-  summary    String?
-  labels     Json?
-  status     String?
-  gherkin    String?
-  updatedAt  DateTime @updatedAt
-  testCase   TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  id                     String   @id @default(cuid())
+  userId                 String
+  testCaseId             String
+  summary                String?
+  labels                 Json?
+  status                 String?
+  gherkin                String?
+  baseSummary            String?
+  baseLabels             String[] @default([])
+  baseStatus             String?
+  baseGherkin            String?
+  baseRemoteUpdatedAt    DateTime?
+  baseFingerprint        String?
+  baseAvailable          Boolean  @default(true)
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testCase               TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, testCaseId])
+  @@index([testCaseId])
 }

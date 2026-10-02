@@ -3,7 +3,7 @@
 | Field      | Value                                             |
 | ---------- | ------------------------------------------------- |
 | Milestone  | M3 Edit                                           |
-| Depends on | US-08.1                                           |
+| Depends on | US-08.2                                           |
 | State      | tracked in [feature-list.json](feature-list.json) |
 
 ## User story
@@ -18,7 +18,7 @@ Edits are **local drafts only**. Nothing is written to Xray until the diff-revie
 
 **In**
 
-- Prisma model `TestCaseDraft` (testCase 1:1, nullable fields `summary`, `labels[]`, `status`, `gherkin`, `updatedAt`). A null field means "unchanged".
+- Prisma model `TestCaseDraft` (user/testCase 1:1, nullable edit fields `summary`, `labels[]`, `status`, `gherkin`, plus an immutable normalized base snapshot/fingerprint and `updatedAt`). A null edit field means "unchanged". The same testcase may have independent drafts for multiple users.
 - Draft rule: if every draft field equals the snapshot, the draft row is deleted (no phantom changes).
 - The grid lives in the `/repository` page built in [US-08.1](US-08.1-ui-redesign.md) (there is no separate `/editor` page), following the XrayBulk design tokens and [refer/template](../../refer/template/UI-SPEC.md) §5. Adds the header "N drafts" chip (slot reserved by US-08.1), the toolbar button "Review N changes" (disabled when N = 0; it navigates to the US-16 review page once that exists), the warning dot before drafted keys, and the footer note "Edits are saved as local drafts. Nothing is written to Xray until you review and sync."
 - Grid (virtualized, 1,000 rows smooth) with columns: select, key (link to `/tests/:key`), summary ✎, labels ✎ (chips), status ✎, folder, Gherkin preview (opens US-12 editor later; read-only here). Labels and status load with test details (the US-07 index does not cache them).

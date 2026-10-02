@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { getXrayProjectFolders, getXrayTestsPage } from '../integrations/xray/client'
 import { logger } from '../utils/logger'
-import { requireWorkspaceProject } from './project-selection'
 
 export interface PullJob {
   id: string
   workspaceId: string
   projectId: string
+  jiraProjectId: string
   state: 'running' | 'succeeded' | 'failed'
   fetched: number
   total: number | null
@@ -28,42 +28,46 @@ export class PullJobError extends Error {
   }
 }
 
-export function getPullJob(workspaceId: string): PullJob | undefined {
-  const activeId = activeJobs.get(workspaceId)
+export function getPullJob(projectId: string): PullJob | undefined {
+  const activeId = activeJobs.get(projectId)
   const id = activeId && activeId !== 'starting'
     ? activeId
-    : [...jobs.values()].findLast((job) => job.workspaceId === workspaceId)?.id
+    : [...jobs.values()].findLast((job) => job.projectId === projectId)?.id
   const job = id ? jobs.get(id) : undefined
   return job ? { ...job } : undefined
 }
 
-export function reservePull(workspaceId: string): void {
-  if (activeJobs.has(workspaceId)) throw new PullJobError('A pull is already running', 409)
-  activeJobs.set(workspaceId, 'starting')
+export function reservePull(projectId: string): void {
+  if (activeJobs.has(projectId)) throw new PullJobError('A pull is already running', 409)
+  activeJobs.set(projectId, 'starting')
 }
 
-export function releasePullReservation(workspaceId: string): void {
-  if (activeJobs.get(workspaceId) === 'starting') activeJobs.delete(workspaceId)
+export function releasePullReservation(projectId: string): void {
+  if (activeJobs.get(projectId) === 'starting') activeJobs.delete(projectId)
 }
 
-export async function startFolderPull(workspaceId: string, requestId?: string): Promise<PullJob> {
-  return startPull(workspaceId, requestId, 'folders')
+export async function startFolderPull(workspaceId: string, projectId: string, requestId?: string): Promise<PullJob> {
+  return startPull(workspaceId, projectId, requestId, 'folders')
 }
 
-export async function startFullPull(workspaceId: string, requestId?: string): Promise<PullJob> {
-  return startPull(workspaceId, requestId, 'full')
+export async function startFullPull(workspaceId: string, projectId: string, requestId?: string): Promise<PullJob> {
+  return startPull(workspaceId, projectId, requestId, 'full')
 }
 
-async function startPull(workspaceId: string, requestId: string | undefined, kind: PullJob['kind']): Promise<PullJob> {
+async function startPull(workspaceId: string, projectId: string, requestId: string | undefined, kind: PullJob['kind']): Promise<PullJob> {
   try {
-    if (activeJobs.get(workspaceId) !== 'starting') throw new PullJobError('A pull is already running', 409)
-    const selected = await requireWorkspaceProject(workspaceId)
-    if (!selected.jiraProjectId) throw new PullJobError('Select and verify a Jira/Xray project before pulling.', 409)
-    if (activeJobs.get(workspaceId) !== 'starting') throw new PullJobError('A pull is already running', 409)
+    if (activeJobs.get(projectId) !== 'starting') throw new PullJobError('A pull is already running', 409)
+    const selected = await usePrisma().workspaceProject.findFirst({
+      where: { workspaceId, projectId },
+      include: { project: { select: { jiraProjectId: true } } },
+    })
+    if (!selected) throw new PullJobError('Project access is not authorized.', 404)
+    if (activeJobs.get(projectId) !== 'starting') throw new PullJobError('A pull is already running', 409)
     const job: PullJob = {
       id: randomUUID(),
       workspaceId,
-      projectId: selected.jiraProjectId,
+      projectId,
+      jiraProjectId: selected.project.jiraProjectId,
       state: 'running',
       fetched: 0,
       total: null,
@@ -73,27 +77,28 @@ async function startPull(workspaceId: string, requestId: string | undefined, kin
       kind,
     }
     jobs.set(job.id, job)
-    activeJobs.set(workspaceId, job.id)
-    void (kind === 'folders' ? pullFolders(job, job.projectId) : pullFull(job, job.projectId)).finally(() => {
-      if (activeJobs.get(workspaceId) === job.id) activeJobs.delete(workspaceId)
+    activeJobs.set(projectId, job.id)
+    void (kind === 'folders' ? pullFolders(job) : pullFull(job)).finally(() => {
+      if (activeJobs.get(projectId) === job.id) activeJobs.delete(projectId)
     })
     return { ...job }
   } catch (error) {
-    releasePullReservation(workspaceId)
+    releasePullReservation(projectId)
     throw error
   }
 }
 
-async function pullFull(job: PullJob, projectId: string): Promise<void> {
+async function pullFull(job: PullJob): Promise<void> {
+  const { projectId, jiraProjectId } = job
   const startedAt = Date.now()
   logger.info('test index pull started', { workspaceId: job.workspaceId, projectId })
   try {
-    const folders = await getXrayProjectFolders(job.workspaceId, projectId)
+    const folders = await getXrayProjectFolders(job.workspaceId, jiraProjectId)
     const tests: Array<{ issueId: string; key: string; summary: string; folderPath: string | null }> = []
     let start = 0
     let total = 0
     do {
-      const page = await getXrayTestsPage(job.workspaceId, projectId, start, 100)
+      const page = await getXrayTestsPage(job.workspaceId, jiraProjectId, start, 100)
       if (page.total < total || page.start !== start || page.results.length > page.limit) {
         throw new Error('Xray returned inconsistent test pagination.')
       }
@@ -114,19 +119,17 @@ async function pullFull(job: PullJob, projectId: string): Promise<void> {
     const pulledAt = new Date()
     const prisma = usePrisma()
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "Workspace" WHERE "id" = ${job.workspaceId} FOR UPDATE`
-      const current = await tx.workspace.findUnique({ where: { id: job.workspaceId }, select: { jiraProjectId: true } })
-      if (!current || current.jiraProjectId !== projectId) {
-        throw new PullJobError('The selected project changed during the pull. Start a new pull.', 409)
-      }
-      const existingFolders = await tx.folder.findMany({ where: { workspaceId: job.workspaceId, jiraProjectId: projectId } })
+      await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${projectId} FOR UPDATE`
+      const current = await tx.project.findUnique({ where: { id: projectId }, select: { id: true } })
+      if (!current) throw new PullJobError('Project no longer exists.', 409)
+      const existingFolders = await tx.folder.findMany({ where: { projectId } })
       const foldersByPath = new Map(existingFolders.map((folder) => [folder.path, folder]))
       let foldersCreated = 0
       let foldersUpdated = 0
       for (const folder of folders) {
         const previous = foldersByPath.get(folder.path)
         if (!previous) {
-          await tx.folder.create({ data: { workspaceId: job.workspaceId, jiraProjectId: projectId, ...folder } })
+          await tx.folder.create({ data: { projectId, ...folder } })
           foldersCreated += 1
         } else if (previous.name !== folder.name || previous.parentPath !== folder.parentPath || previous.remoteTestsCount !== folder.remoteTestsCount) {
           await tx.folder.update({ where: { id: previous.id }, data: { ...folder, pulledAt } })
@@ -138,8 +141,8 @@ async function pullFull(job: PullJob, projectId: string): Promise<void> {
       if (staleFolders.length) await tx.folder.deleteMany({ where: { id: { in: staleFolders.map((folder) => folder.id) } } })
 
       const existingTests = await tx.testCase.findMany({
-        where: { workspaceId: job.workspaceId, jiraProjectId: projectId, origin: 'REMOTE' },
-        include: { draft: true, snapshot: true },
+        where: { projectId, origin: 'REMOTE' },
+        include: { drafts: true, snapshot: true },
       })
       const testsByIssue = new Map(existingTests.map((test) => [test.issueId, test]))
       const liveIssues = new Set(tests.map((test) => test.issueId))
@@ -155,8 +158,7 @@ async function pullFull(job: PullJob, projectId: string): Promise<void> {
         } else {
           await tx.testCase.create({
               data: {
-                workspaceId: job.workspaceId,
-                jiraProjectId: projectId,
+                projectId,
                 issueId: remote.issueId,
                 key: remote.key,
                 summary: remote.summary,
@@ -166,14 +168,14 @@ async function pullFull(job: PullJob, projectId: string): Promise<void> {
             })
         }
       }
-      const staleTests = existingTests.filter((test) => !liveIssues.has(test.issueId))
-      const preserve = staleTests.filter((test) => test.draft)
-      const remove = staleTests.filter((test) => !test.draft)
+      const staleTests = existingTests.filter((test) => test.issueId && !liveIssues.has(test.issueId))
+      const preserve = staleTests.filter((test) => test.drafts.length > 0)
+      const remove = staleTests.filter((test) => test.drafts.length === 0)
       if (preserve.length) {
         await tx.testCase.updateMany({ where: { id: { in: preserve.map((test) => test.id) } }, data: { remoteDeletedAt: pulledAt } })
       }
       if (remove.length) await tx.testCase.deleteMany({ where: { id: { in: remove.map((test) => test.id) } } })
-      await tx.workspace.update({ where: { id: job.workspaceId }, data: { foldersPulledAt: pulledAt } })
+      await tx.project.update({ where: { id: projectId }, data: { foldersPulledAt: pulledAt } })
       return {
         foldersCreated,
         foldersUpdated,
@@ -207,23 +209,19 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
-async function pullFolders(job: PullJob, projectId: string): Promise<void> {
+async function pullFolders(job: PullJob): Promise<void> {
+  const { projectId, jiraProjectId } = job
   const startedAt = Date.now()
   logger.info('folder pull started', { workspaceId: job.workspaceId, projectId })
   try {
-    const folders = await getXrayProjectFolders(job.workspaceId, projectId)
+    const folders = await getXrayProjectFolders(job.workspaceId, jiraProjectId)
     const prisma = usePrisma()
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "Workspace" WHERE "id" = ${job.workspaceId} FOR UPDATE`
-      const current = await tx.workspace.findUnique({
-        where: { id: job.workspaceId },
-        select: { jiraProjectId: true },
-      })
-      if (!current || current.jiraProjectId !== projectId) {
-        throw new PullJobError('The selected project changed during the pull. Start a new pull.', 409)
-      }
+      await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${projectId} FOR UPDATE`
+      const current = await tx.project.findUnique({ where: { id: projectId }, select: { id: true } })
+      if (!current) throw new PullJobError('Project no longer exists.', 409)
       const existing = await tx.folder.findMany({
-        where: { workspaceId: job.workspaceId, jiraProjectId: projectId },
+        where: { projectId },
       })
       const byPath = new Map(existing.map((folder) => [folder.path, folder]))
       let created = 0
@@ -232,7 +230,7 @@ async function pullFolders(job: PullJob, projectId: string): Promise<void> {
         const previous = byPath.get(folder.path)
         if (!previous) {
           await tx.folder.create({
-            data: { workspaceId: job.workspaceId, jiraProjectId: projectId, ...folder },
+            data: { projectId, ...folder },
           })
           created += 1
         } else if (
@@ -251,7 +249,7 @@ async function pullFolders(job: PullJob, projectId: string): Promise<void> {
       if (stale.length > 0) {
         await tx.folder.deleteMany({ where: { id: { in: stale.map((folder) => folder.id) } } })
       }
-      await tx.workspace.update({ where: { id: job.workspaceId }, data: { foldersPulledAt: new Date() } })
+      await tx.project.update({ where: { id: projectId }, data: { foldersPulledAt: new Date() } })
       return { created, updated, deleted: stale.length }
     })
     job.fetched = folders.length

@@ -40,21 +40,33 @@ export const JIRA_KEY_PATTERN = /^[A-Z][A-Z0-9_]*-\d+$/
 
 export interface ReadyWorkspace {
   id: string
+  projectId: string
   jiraProjectId: string
 }
 
 /** Resolves the session's workspace and requires a ready project. Throws 404/409 otherwise. */
 export async function requireReadyWorkspace(
   session: { userId: string; activeWorkspaceId: string },
+  projectId: string | undefined,
   notReadyMessage: string,
 ): Promise<ReadyWorkspace> {
   const workspace = await usePrisma().workspace.findFirst({
     where: { id: session.activeWorkspaceId, ownerId: session.userId },
-    select: { id: true, jiraProjectId: true, projectReadyAt: true },
+    select: { id: true },
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
-  if (!workspace.projectReadyAt || !workspace.jiraProjectId) throw httpError(409, notReadyMessage)
-  return { id: workspace.id, jiraProjectId: workspace.jiraProjectId }
+  if (!projectId) {
+    const projects = await usePrisma().workspaceProject.findMany({ where: { workspaceId: workspace.id }, select: { projectId: true }, take: 2 })
+    if (projects.length === 1) projectId = projects[0]!.projectId
+    else if (projects.length > 1) throw httpError(409, notReadyMessage)
+    else throw httpError(404, 'Test not found.')
+  }
+  const access = await usePrisma().workspaceProject.findFirst({
+    where: { workspaceId: workspace.id, projectId },
+    include: { project: { select: { id: true, jiraProjectId: true } } },
+  })
+  if (!access) throw httpError(404, 'Project not found or access is not authorized.')
+  return { id: workspace.id, projectId: access.project.id, jiraProjectId: access.project.jiraProjectId }
 }
 
 export const NOT_READY_REPOSITORY_MESSAGE =
@@ -62,7 +74,7 @@ export const NOT_READY_REPOSITORY_MESSAGE =
 
 export interface IndexedTest {
   id: string
-  issueId: string
+  issueId: string | null
   key: string
   summary: string | null
   folderPath: string | null
@@ -70,8 +82,9 @@ export interface IndexedTest {
 }
 
 /** Fetches current Xray details for an indexed test and maps them. Persists nothing. */
-export async function fetchFreshTestDetails(workspaceId: string, testCase: IndexedTest) {
-  const remote = await getXrayTestDetailsByKey(workspaceId, testCase.key)
+export async function fetchFreshTestDetails(workspaceId: string, testCase: IndexedTest, projectId: string) {
+  if (!testCase.issueId) throw httpError(404, 'Test not found.')
+  const remote = await getXrayTestDetailsByKey(workspaceId, testCase.key, projectId)
   if (remote.issueId !== testCase.issueId) {
     throw httpError(404, 'The indexed test no longer matches the requested Xray issue.')
   }

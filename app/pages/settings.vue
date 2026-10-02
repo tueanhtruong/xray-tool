@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { data, refresh: refreshSession } = useWorkspaceSession()
+const { data } = useWorkspaceSession()
 const { clear } = useUserSession()
 const { data: connection, refresh: refreshConnection } = await useFetch<{
   siteUrl: string
@@ -32,7 +32,7 @@ const projectPending = ref(false)
 const pullPending = ref(false)
 const pullError = ref('')
 const pullResult = ref('')
-const { data: pullStatus, refresh: refreshPullStatus } = await useFetch<{
+const { data: pullStatus } = await useFetch<{
   state: 'idle' | 'running' | 'succeeded' | 'failed'
   fetched: number
   total: number | null
@@ -42,15 +42,15 @@ const { data: pullStatus, refresh: refreshPullStatus } = await useFetch<{
 }>('/api/pull/status', { lazy: true })
 let pullPoll: ReturnType<typeof setInterval> | undefined
 
-async function pullFolders() {
+async function pullFolders(projectId: string) {
   pullError.value = ''
   pullResult.value = ''
   pullPending.value = true
   try {
-    await $fetch('/api/pull/folders', { method: 'POST' })
-    await refreshPullStatus()
+    await $fetch('/api/pull/folders', { method: 'POST', query: { project: projectId } })
+    pullStatus.value = await $fetch<typeof pullStatus.value>('/api/pull/status', { query: { project: projectId } })
     pullPoll = setInterval(async () => {
-      await refreshPullStatus()
+      pullStatus.value = await $fetch<typeof pullStatus.value>('/api/pull/status', { query: { project: projectId } })
       if (pullStatus.value?.state !== 'running') {
         if (pullPoll) clearInterval(pullPoll)
         pullPoll = undefined
@@ -88,22 +88,25 @@ async function searchProjects(startAt = 0) {
 async function selectProject(project: { id: string; key: string; name: string }) {
   projectError.value = ''
   projectMessage.value = ''
-  if (
-    data.value?.workspace.projectReady &&
-    data.value.workspace.jiraProjectKey !== project.key &&
-    !window.confirm(`Change the selected project to ${project.key}? The previous project's local cache will be cleared.`)
-  ) return
   projectPending.value = true
   try {
-    await $fetch('/api/project', {
+    const result = await $fetch<{ projectId: string; jiraProjectId?: string }>('/api/project', {
       method: 'PUT',
-      body: {
-        projectId: project.id,
-        confirmChange: data.value?.workspace.projectReady === true,
-      },
+      body: { projectId: project.id },
     })
     projectMessage.value = `${project.key} is ready.`
-    await refreshSession()
+    await refreshNuxtData('workspace-session')
+    const projectId = result.projectId
+    if (data.value && !data.value.workspace.projects.some((candidate) => candidate.id === projectId)) {
+      data.value.workspace.projects = [...data.value.workspace.projects, {
+        id: projectId,
+        jiraProjectId: result.jiraProjectId ?? project.id,
+        jiraProjectKey: project.key,
+        jiraProjectName: project.name,
+        projectReadyAt: new Date().toISOString(),
+        foldersPulledAt: null,
+      }]
+    }
   } catch (error) {
     projectError.value = error && typeof error === 'object' && 'data' in error && error.data &&
       typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string'
@@ -162,7 +165,7 @@ async function saveXrayConnection() {
     xrayClientSecret.value = ''
     xrayMessage.value = 'Connected to Xray Cloud'
     await refreshXrayConnection()
-    await refreshSession()
+    await refreshNuxtData('workspace-session')
   } catch (error) {
     xrayError.value =
       error && typeof error === 'object' && 'data' in error && error.data &&
@@ -196,15 +199,12 @@ onBeforeUnmount(() => {
         <li>{{ data?.workspace.jiraConnected ? '✓ Jira connected' : 'Jira connection required' }}</li>
         <li>{{ data?.workspace.xrayConnected ? '✓ Xray connected' : 'Xray connection required' }}</li>
         <li>
-          <template v-if="data?.workspace.projectReady">
-            ✓ Project selected: {{ data.workspace.jiraProjectKey }} — {{ data.workspace.jiraProjectName }}
-          </template>
-          <template v-else>Project selection required</template>
+          {{ data?.workspace.projects.length ? `✓ ${data.workspace.projects.length} project(s) authorized` : 'Project selection required' }}
         </li>
       </ol>
-      <div v-if="data?.workspace.projectReady" class="mt-3 flex items-center gap-3">
+      <div v-if="data?.workspace.projects.length" class="mt-3 flex flex-wrap items-center gap-3">
         <StatusBadge tone="ok"><span data-testid="workspace-ready">Ready</span></StatusBadge>
-        <NuxtLink to="/repository" class="font-medium text-primary underline" data-testid="repository-link">Open Test Repository</NuxtLink>
+        <NuxtLink v-for="project in data.workspace.projects" :key="project.id" :to="{ path: '/repository', query: { project: project.id } }" class="font-medium text-primary underline" data-testid="repository-link">Open {{ project.jiraProjectKey }}</NuxtLink>
       </div>
     </PageCard>
 
@@ -279,7 +279,7 @@ onBeforeUnmount(() => {
         <li v-for="project in projectPage.values" :key="project.id" class="flex items-center justify-between gap-3">
           <span>{{ project.key }} — {{ project.name }}</span>
           <UButton :disabled="projectPending" @click="selectProject(project)">
-            {{ data?.workspace.projectReady ? 'Select project' : 'Select' }}
+            {{ data?.workspace.projects.some((current) => current.jiraProjectId === project.id) ? 'Open project' : 'Connect project' }}
           </UButton>
         </li>
       </ul>
@@ -289,9 +289,10 @@ onBeforeUnmount(() => {
       </div>
     </PageCard>
 
-    <PageCard v-if="data?.workspace.projectReady" title="Folders" description="Refresh the cached folder tree from Xray." data-testid="pull-folders">
-      <div class="space-y-2">
-        <UButton :disabled="pullPending" @click="pullFolders">Pull folders</UButton>
+    <PageCard v-if="data?.workspace.projects.length" title="Folders" description="Refresh each authorized project's folder tree from Xray." data-testid="pull-folders">
+      <div v-for="project in data?.workspace.projects ?? []" :key="project.id" class="space-y-2 border-b border-default py-3 last:border-0">
+        <p class="font-medium">{{ project.jiraProjectKey }} — {{ project.jiraProjectName }}</p>
+        <UButton :disabled="pullPending" @click="pullFolders(project.id)">Refresh folders</UButton>
         <p v-if="pullPending" role="status">Pulling folders… {{ pullStatus?.fetched ?? 0 }} / {{ pullStatus?.total ?? '?' }}</p>
         <div v-if="pullError" data-testid="pull-error">
           <ErrorBanner :message="pullError" :title="pullStatus?.requestId ? `Request ID: ${pullStatus.requestId}` : undefined" />

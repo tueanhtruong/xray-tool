@@ -1,17 +1,29 @@
-# 0006 — Single-user workspaces
+# 0006 — Single-user workspaces and shared project cache
 
-- Status: accepted (assumption, revisable before US-02)
-- Date: 2026-09-29
-- Source: [user-stories README, assumption 4](../user-stories/README.md#assumptions-to-confirm)
+- Status: accepted (revised by US-08.2)
+- Date: 2026-10-01
+- Source: US-08.2 multi-project repository
 
 ## Decision
 
-In v1 each workspace belongs to exactly one user: one Jira connection, one Xray credential, one
-selected project, and that user's drafts. Team sharing, roles, and billing are out of scope.
+Each Jira workspace remains owned by one application user and retains its own Jira and Xray
+credentials. Jira projects are separate tenant-scoped records keyed by cloud ID (or normalized site
+origin for API-token sites) plus Jira project ID. A workspace gains access to a project only after
+Jira metadata lookup and Xray access verification; authorized workspaces reuse the same read-only
+project cache. Project context belongs to each URL/request, not a mutable workspace selection.
+
+Drafts belong to `(user, shared test case)` and capture immutable base fields and fingerprint when
+created. A project refresh may update shared remote state without replacing any user's draft base.
+Team roles, shared draft editing, and billing remain out of scope. Independently authorized Xray
+credentials are assumed to expose equivalent project indexes; a second-credential sandbox check is
+optional and may be performed manually later.
 
 ## Consequences
 
-- There are no concurrent-editor conflicts inside the app. Remote conflicts with Xray are still
-  handled (US-17).
-- The data model keeps a `workspace` boundary, so sharing can be added later without changing
-  every table.
+- Different users may edit the same shared test case independently; each user's draft and project
+  context remain private.
+- Project switches retain caches and drafts and never write to Jira/Xray.
+- Same-project pulls are serialized; different projects can refresh concurrently under the
+  single-instance job coordinator.
+- Cache access depends on a verified workspace/project association, never cache existence or a
+  guessed project identifier.

@@ -57,6 +57,7 @@ describe('route guards, return paths, and key lookup', () => {
   let mock: MockServicesHandle
   let cookie = ''
   let workspaceId = ''
+  let projectId = ''
 
   beforeAll(async () => {
     mock = await startMockServices(mockUrl)
@@ -83,18 +84,19 @@ describe('route guards, return paths, and key lookup', () => {
       headers: { cookie, origin: server.url, 'content-type': 'application/json' },
       body: JSON.stringify({ region: 'EU', clientId: 'mock-xray-client-id', clientSecret: 'mock-xray-client-secret' }),
     })
-    await fetch(`${server.url}/api/project`, {
+    const selected = await fetch(`${server.url}/api/project`, {
       method: 'PUT',
       headers: { cookie, origin: server.url, 'content-type': 'application/json' },
       body: JSON.stringify({ projectId: '10001' }),
     })
+    projectId = ((await selected.json()) as { projectId: string }).projectId
     const session = await fetch(`${server.url}/api/auth/session`, { headers: { cookie } })
     workspaceId = ((await session.json()) as { workspace: { id: string } }).workspace.id
-    await queryRows(`DELETE FROM "TestCase" WHERE "workspaceId"=$1`, [workspaceId])
+    await queryRows(`DELETE FROM "TestCase" WHERE "projectId"=$1`, [projectId])
     await queryRows(
-      `INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, summary, "folderPath", origin, "updatedAt")
-       VALUES ('guard-1', $1, '10001', '20000', 'ONEDS-14043', 'Repository test 1', '/Autocomplete', 'REMOTE', now())`,
-      [workspaceId],
+      `INSERT INTO "TestCase" (id, "projectId", "issueId", key, summary, "folderPath", origin, "updatedAt")
+       VALUES ('guard-1', $1, '20000', 'ONEDS-14043', 'Repository test 1', '/Autocomplete', 'REMOTE', now())`,
+      [projectId],
     )
   })
 
@@ -128,33 +130,24 @@ describe('route guards, return paths, and key lookup', () => {
     })
 
     it('serves protected pages to a signed-in owner of a ready workspace', async () => {
-      for (const path of ['/settings', '/repository', '/tests/ONEDS-14043']) {
+      for (const path of ['/settings', `/repository?project=${projectId}`, `/tests/ONEDS-14043?project=${projectId}`]) {
         const response = await fetch(`${server.url}${path}`, { headers: { cookie }, redirect: 'manual' })
         expect(response.status, path).toBe(200)
       }
     })
 
-    it('redirects repository pages to /settings while the project is not ready', async () => {
-      await queryRows('UPDATE "Workspace" SET "projectReadyAt" = NULL WHERE id = $1', [workspaceId])
-      try {
-        for (const path of ['/repository', '/tests/ONEDS-14043']) {
-          const response = await fetch(`${server.url}${path}`, { headers: { cookie }, redirect: 'manual' })
-          expect(response.status, path).toBe(302)
-          expect(response.headers.get('location'), path).toBe('/settings')
-        }
-        const settings = await fetch(`${server.url}/settings`, { headers: { cookie }, redirect: 'manual' })
-        expect(settings.status).toBe(200)
-      } finally {
-        await queryRows('UPDATE "Workspace" SET "projectReadyAt" = now() WHERE id = $1', [workspaceId])
-      }
+    it('requires explicit project choice for legacy repository routes', async () => {
+      const response = await fetch(`${server.url}/repository?project=unknown`, { headers: { cookie }, redirect: 'manual' })
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toBe(`/repository?project=${projectId}`)
     })
 
     it('bounces a signed-in user from /login to a safe destination', async () => {
       const cases: Array<[string, string]> = [
-        ['/login', '/repository'],
-        ['/login?next=%2Ftests%2FONEDS-14043', '/tests/ONEDS-14043'],
-        ['/login?next=https%3A%2F%2Fevil.example%2Fx', '/repository'],
-        ['/login?next=%2F%2Fevil.example', '/repository'],
+      ['/login', '/repository'],
+      ['/login?next=%2Ftests%2FONEDS-14043', '/tests/ONEDS-14043'],
+      ['/login?next=https%3A%2F%2Fevil.example%2Fx', '/repository'],
+      ['/login?next=%2F%2Fevil.example', '/repository'],
       ]
       for (const [path, location] of cases) {
         const response = await fetch(`${server.url}${path}`, { headers: { cookie }, redirect: 'manual' })
@@ -218,7 +211,7 @@ describe('route guards, return paths, and key lookup', () => {
     it('returns fresh details for a cached key without persisting them', async () => {
       await control({ xrayTestMode: 'five', xrayTestRevision: 0, resetXrayCounts: true })
       const before = await queryRows('SELECT id FROM "TestCaseSnapshot" WHERE "testCaseId" = $1', ['guard-1'])
-      const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043`, { headers: { cookie } })
+      const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`, { headers: { cookie } })
       expect(response.status).toBe(200)
       expect(await response.json()).toMatchObject({
         key: 'ONEDS-14043',
@@ -234,40 +227,32 @@ describe('route guards, return paths, and key lookup', () => {
 
     it('returns 404 for unknown and malformed keys', async () => {
       for (const key of ['NOPE-1', 'bad key', '%3Cscript%3E', 'ONEDS-']) {
-        const response = await fetch(`${server.url}/api/tests/by-key/${key}`, { headers: { cookie } })
+        const response = await fetch(`${server.url}/api/tests/by-key/${key}?project=${projectId}`, { headers: { cookie } })
         expect(response.status, key).toBe(404)
       }
     })
 
-    it('does not return tests that exist only in another workspace', async () => {
-      const owner = await queryRows<{ ownerId: string }>('SELECT "ownerId" FROM "Workspace" WHERE id = $1', [workspaceId])
-      const ownerId = owner[0]?.ownerId
+    it('does not return tests from an unassociated tenant project', async () => {
       await queryRows(
-        `INSERT INTO "Workspace" (id, "ownerId", "siteOrigin", "siteUrl", name, "jiraProjectId", "projectReadyAt", "updatedAt")
-         VALUES ('guard-other-ws', $1, 'https://other-guard.atlassian.net', 'https://other-guard.atlassian.net', 'Other', '10001', now(), now())`,
-        [ownerId],
+        `INSERT INTO "Project" (id, "tenantIdentityKind", "tenantIdentity", "jiraProjectId", "jiraProjectKey", "jiraProjectName", "testIssueTypeId", "testIssueTypeName", "projectStatuses", "updatedAt")
+         VALUES ('guard-other-project', 'SITE_ORIGIN', 'https://other-guard.atlassian.net', '10001', 'OTHER', 'Other', '100', 'Test', '[]', now())`,
       )
       await queryRows(
-        `INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, origin, "updatedAt")
-         VALUES ('guard-foreign', 'guard-other-ws', '10001', '29999', 'OTHER-1', 'REMOTE', now())`,
+        `INSERT INTO "TestCase" (id, "projectId", "issueId", key, origin, "updatedAt")
+         VALUES ('guard-foreign', 'guard-other-project', '29999', 'OTHER-1', 'REMOTE', now())`,
       )
       try {
-        const response = await fetch(`${server.url}/api/tests/by-key/OTHER-1`, { headers: { cookie } })
+        const response = await fetch(`${server.url}/api/tests/by-key/OTHER-1?project=guard-other-project`, { headers: { cookie } })
         expect(response.status).toBe(404)
       } finally {
-        await queryRows(`DELETE FROM "Workspace" WHERE id = 'guard-other-ws'`)
+        await queryRows(`DELETE FROM "Project" WHERE id = 'guard-other-project'`)
       }
     })
 
     it('requires a session and a ready workspace', async () => {
-      expect((await fetch(`${server.url}/api/tests/by-key/ONEDS-14043`)).status).toBe(401)
-      await queryRows('UPDATE "Workspace" SET "projectReadyAt" = NULL WHERE id = $1', [workspaceId])
-      try {
-        const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043`, { headers: { cookie } })
-        expect(response.status).toBe(409)
-      } finally {
-        await queryRows('UPDATE "Workspace" SET "projectReadyAt" = now() WHERE id = $1', [workspaceId])
-      }
+      expect((await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`)).status).toBe(401)
+      const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=unassociated`, { headers: { cookie } })
+      expect(response.status).toBe(404)
     })
   })
 })

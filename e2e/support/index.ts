@@ -51,6 +51,7 @@ export async function connectXrayAndSelectProject(page: Page) {
     .filter({ hasText: 'ONEDS' })
     .getByRole('button')
     .click()
+  await expect(page).toHaveURL(/project=/)
 }
 
 /** Full setup used by repository specs: sign in, connect, open the repository, pull. */
@@ -60,6 +61,8 @@ export async function setupRepository(
   options: { xrayTestMode?: string; xrayFolderMode?: string } = {},
 ) {
   await control(request, {
+    mode: 'single',
+    projectMode: 'valid',
     xrayMode: 'valid',
     xrayFolderMode: options.xrayFolderMode ?? 'flat',
     xrayTestMode: options.xrayTestMode ?? 'five',
@@ -68,7 +71,8 @@ export async function setupRepository(
   })
   await signInWithOAuth(page)
   await connectXrayAndSelectProject(page)
-  await page.getByTestId('repository-link').click()
+  if (!page.url().includes('/repository')) await page.getByTestId('repository-link').first().click()
+  page.once('dialog', (dialog) => dialog.accept())
   await page.getByTestId('pull-from-xray').click()
   await expect(page.getByTestId('pull-success')).toContainText('Pulled 5 tests, 4 folders')
 }

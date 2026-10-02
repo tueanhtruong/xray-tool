@@ -62,11 +62,9 @@ test.beforeAll(async ({ playwright }) => {
     resetWriteRequestCount: true,
   })
   await request.dispose()
-  // Start from "no project selected" so the readiness-dependent scenarios are deterministic.
-  await queryRows(
-    `UPDATE "Workspace" SET "projectReadyAt" = NULL, "jiraProjectId" = NULL, "jiraProjectKey" = NULL,
-     "jiraProjectName" = NULL, "foldersPulledAt" = NULL`,
-  )
+  // Start without verified project associations so readiness-dependent scenarios are deterministic.
+  await queryRows('DELETE FROM "WorkspaceProject"')
+  await queryRows('DELETE FROM "Project"')
   await queryRows('DELETE FROM "TestCase"')
   await queryRows('DELETE FROM "Folder"')
 })
@@ -163,7 +161,7 @@ test.describe('landing and login', () => {
   test('settings keeps the onboarding behavior: connect Xray, select a project', async ({ page }) => {
     await signInWithOAuth(page)
     await connectXrayAndSelectProject(page)
-    await expect(page.getByTestId('workspace-ready')).toHaveText('Ready')
+    await expect(page).toHaveURL(/\/repository\?project=/)
     await expect(page.getByTestId('header-project')).toContainText('ONEDS')
   })
 
@@ -172,19 +170,19 @@ test.describe('landing and login', () => {
     await page.goto('/')
     await expect(page.getByTestId('landing-cta')).toHaveText('Open repository')
     await page.goto('/login')
-    await expect(page).toHaveURL('/repository')
+    await expect(page).toHaveURL(/\/repository\?project=/)
   })
 
   test('sign-in lands on next, and an external next is ignored', async ({ page }) => {
     await signInWithOAuth(page, '/repository?folder=/Autocomplete')
-    await expect(page).toHaveURL('/repository?folder=/Autocomplete')
+    await expect(page).toHaveURL(/\/repository\?folder=\/Autocomplete&project=/)
 
     const other = await page.context().browser()!.newContext()
     const evil = await other.newPage()
     await evil.goto('/login?next=https://evil.example/x')
     await expect(evil.getByTestId('jira-login')).toHaveAttribute('href', '/auth/jira/login')
     await evil.getByTestId('jira-login').click()
-    await expect(evil).toHaveURL('/repository')
+    await expect(evil).toHaveURL(/\/repository\?project=/)
     await other.close()
   })
 
@@ -213,12 +211,13 @@ test.describe('landing and login', () => {
 test.describe('repository', () => {
   async function openRepository(page: Page) {
     await signInWithOAuth(page, '/repository')
-    await expect(page).toHaveURL('/repository')
+    await expect(page).toHaveURL(/\/repository\?project=/)
   }
 
   test('pulls from Xray and shows the never-pulled state first', async ({ page }) => {
     await openRepository(page)
-    await expect(page.getByTestId('never-pulled')).toContainText('Pull from Xray')
+    await expect(page.getByTestId('never-pulled')).toContainText('Refresh all project tests')
+    page.once('dialog', (dialog) => dialog.accept())
     await page.getByTestId('pull-cta').click()
     await expect(page.getByTestId('pull-success')).toContainText('Pulled 5 tests, 4 folders')
     await expect(page.getByRole('table')).toContainText('ONEDS-14043')
@@ -296,7 +295,7 @@ test.describe('repository', () => {
     await signInWithOAuth(page, '/tests/NOPE-1')
     await expect(page.getByTestId('test-not-found')).toContainText('Test not found')
     await page.getByTestId('test-not-found').getByRole('link', { name: 'Back to repository' }).click()
-    await expect(page).toHaveURL('/repository')
+    await expect(page).toHaveURL(/\/repository\?project=/)
   })
 
   test('shows loading, error with retry, and renders remote markup as text', async ({ page }) => {
@@ -342,7 +341,7 @@ test.describe('responsive and accessible', () => {
   test('stacks the layouts and has no page-level horizontal scroll at 375px', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 })
     await signInWithOAuth(page, '/repository')
-    await expect(page).toHaveURL('/repository')
+    await expect(page).toHaveURL(/\/repository\?project=/)
     for (const [name, path] of pages) {
       await page.goto(path)
       await hydrated(page)

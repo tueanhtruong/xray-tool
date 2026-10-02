@@ -1,3 +1,4 @@
+import { getQuery } from 'h3'
 import { getAppSession } from '../../utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -5,14 +6,18 @@ export default defineEventHandler(async (event) => {
   if (!session) throw httpError(401, 'Sign in to continue.')
   const workspace = await usePrisma().workspace.findFirst({
     where: { id: session.activeWorkspaceId, ownerId: session.userId },
-    select: { id: true, jiraProjectId: true, projectReadyAt: true, foldersPulledAt: true },
+    select: { id: true },
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
-  if (!workspace.projectReadyAt || !workspace.jiraProjectId) {
-    throw httpError(409, 'Select and verify a Jira/Xray project before opening the test repository.')
-  }
+  const projectId = getQuery(event).project
+  if (typeof projectId !== 'string') throw httpError(409, 'Choose a project before opening the test repository.')
+  const project = await usePrisma().workspaceProject.findFirst({
+    where: { workspaceId: workspace.id, projectId },
+    include: { project: { select: { foldersPulledAt: true } } },
+  })
+  if (!project) throw httpError(404, 'Project not found or access is not authorized.')
   const folders = await usePrisma().folder.findMany({
-    where: { workspaceId: workspace.id, jiraProjectId: workspace.jiraProjectId },
+    where: { projectId },
     orderBy: { path: 'asc' },
     select: { path: true, name: true, parentPath: true, remoteTestsCount: true, pulledAt: true },
   })
@@ -30,5 +35,5 @@ export default defineEventHandler(async (event) => {
       folders: buildTree(folder.path),
     }))
   }
-  return { folders: buildTree('/'), foldersPulledAt: workspace.foldersPulledAt }
+  return { folders: buildTree('/'), foldersPulledAt: project.project.foldersPulledAt }
 })

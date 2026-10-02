@@ -78,24 +78,24 @@ against the built-in `atlassian.net` suffix and optional `NUXT_JIRA_SITE_URL_SUF
 workspace client retains the same `fetch` interface and selects cloud-ID/Bearer OAuth or
 site-origin/Basic API-token behavior using the stored connection method.
 
-Project discovery and metadata requests use that workspace-scoped Jira client. US-05 stores the
-selected Jira project key, numeric ID, Test issue type, and status options on the workspace only
-after Jira metadata and the Xray root-folder probe both succeed. A project readiness service gates
-repository pages and project-data APIs; workspace onboarding remains available until the project
-is ready. `Folder` and `TestCase` rows carry both `workspaceId` and `jiraProjectId`; snapshots and
-drafts are children of their test case. Project switching locks the workspace, rejects persisted
-drafts belonging to the old project, and removes that project's folders and test cases in the same
-transaction as updating the selection. Snapshot/draft rows cascade with their test case. Future
-project-owned cache models must use the same workspace/project scope and join the switch cleanup
-boundary; folder, test-case, and draft writes acquire the workspace lock so they serialize with
-switching.
+Project discovery and metadata requests use the workspace-scoped Jira client. A verified selection
+creates or reuses a `Project` keyed by tenant identity kind/value plus Jira project ID, and a
+`WorkspaceProject` association only after Jira metadata and the Xray root-folder probe succeed.
+Remote folders, test index rows, current snapshots, and refresh timestamps are project-owned and
+shared through verified associations; workspace Jira/Xray credentials remain private. Imported
+tests are owner-scoped. `TestCaseDraft` is unique by user/test case and holds immutable normalized
+base fields/fingerprint separate from the shared current `TestCaseSnapshot`. The view's project ID
+is carried in its URL and every API request; no server-global workspace project selection exists.
 
 Repository pulls stage the complete remote folder tree and (for a full pull) all paged lightweight
 test index records (issue identity, key, name/summary, folder) before applying changes. One
-transaction under the workspace row lock rechecks the selected project, upserts changed folders and
-index entries (clearing a previously loaded test type when the index pull replaces it), removes stale
-remote rows, preserves stale test cases with drafts by setting
-`remoteDeletedAt`, and updates `foldersPulledAt`. Index pulls do not create or refresh snapshots.
+transaction under the project row lock upserts changed folders and index entries (clearing a
+previously loaded test type when the index pull replaces it), removes stale remote rows, preserves
+stale test cases with any user drafts by setting `remoteDeletedAt`, and updates the project's
+`foldersPulledAt`. Pull job reservations and status are project-scoped. Index pulls do not create or
+refresh snapshots. A sampled Xray `getTests(folder: FolderSearchInput)` subtree query matches the
+full-project index for that subtree, but does not establish moved-out/deleted membership; the UI
+therefore exposes full-project refresh only.
 Opening a detail view fetches current Xray details on every open without persisting them. Selecting
 tests for the editor fetches those details and compares them to any existing snapshot: missing
 snapshots are created, unchanged snapshots are left untouched, changed snapshots refresh only when
@@ -104,19 +104,21 @@ are SHA-256 of JSON containing trimmed summary, sorted labels, trimmed status, a
 CRLF/CR normalized to LF and surrounding whitespace trimmed. Folder and test-index queries are
 cache-only; detail and editor-selection flows are the only repository reads that call Xray.
 
-## UI routes and design system (US-08.1)
+## UI routes and design system (US-08.1 / US-08.2)
 
 | Route         | Screen                                             | Access                    |
 | ------------- | -------------------------------------------------- | ------------------------- |
 | `/`           | Landing                                            | public                    |
 | `/login`      | Login (OAuth / API token tabs)                     | public                    |
-| `/settings`   | Workspace setup (Jira, Xray, project, folder pull) | signed in                 |
-| `/repository` | Folder tree + test list                            | signed in + project ready |
-| `/tests/:key` | Test case page                                     | signed in + project ready |
+| `/settings`   | Workspace setup (Jira, Xray, project authorization) | signed in                      |
+| `/repository?project=<id>` | Folder tree + test list                 | signed in + authorized project |
+| `/tests/:key?project=<id>` | Test case page                         | signed in + authorized project |
+| `/projects/:id/drafts` | Current user's drafts for a project          | signed in + authorized project |
 
 Protected pages redirect to `/login?next=<path>` (same-origin relative paths only, validated by
 `shared/ui/safe-next-path.ts`) and repository routes redirect to `/settings` until a project is
-ready. `next` survives the OAuth round trip in a signed, HttpOnly, 10-minute `login_next` cookie
+authorized. Legacy repository/test URLs with multiple authorized projects route to an explicit
+project choice rather than silently choosing a project. `next` survives the OAuth round trip in a signed, HttpOnly, 10-minute `login_next` cookie
 (`server/utils/oauth-cookies.ts`); after sign-in the destination is `next`, else `/repository`.
 OAuth site selection and API-token sign-in answer with JSON `{ redirectTo }`. A signed-in user
 opening `/login` is redirected. `GET /api/tests/by-key/:key` resolves a cached test by key for

@@ -73,12 +73,8 @@ describe('Jira/Xray project selection', () => {
     })
     await control({ mode: 'single', projectMode: 'valid', xrayMode: 'valid' })
     cookie = await oauthSignIn(server)
-    // Other files share this signed-in workspace; start from "no project selected".
-    await queryRows(
-      `UPDATE "Workspace" SET "jiraProjectId" = NULL, "jiraProjectKey" = NULL, "jiraProjectName" = NULL,
-       "projectReadyAt" = NULL, "testIssueTypeId" = NULL, "testIssueTypeName" = NULL, "projectStatuses" = NULL
-       WHERE "cloudId" = 'fake-cloud-one'`,
-    )
+    await queryRows('DELETE FROM "WorkspaceProject"')
+    await queryRows('DELETE FROM "Project"')
     const xray = await configureXray(server, cookie)
     if (xray.status !== 200) throw new Error(`Xray setup failed: ${await xray.text()}`)
   })
@@ -140,12 +136,12 @@ describe('Jira/Xray project selection', () => {
     })
   })
 
-  it('stores a ready project only after Jira and Xray checks and preserves it on failures', async () => {
-    const select = async (projectId: string, confirmChange = false) =>
+  it('stores verified tenant projects additively and retains project-owned caches', async () => {
+    const select = async (projectId: string) =>
       fetch(`${server.url}/api/project`, {
         method: 'PUT',
         headers: { cookie, origin: server.url, 'content-type': 'application/json' },
-        body: JSON.stringify({ projectId, confirmChange }),
+        body: JSON.stringify({ projectId }),
       })
 
     const noTest = await control({ projectMode: 'no-test' })
@@ -164,14 +160,12 @@ describe('Jira/Xray project selection', () => {
     const session = await fetch(`${server.url}/api/auth/session`, { headers: { cookie } })
     const sessionBody = (await session.json()) as { workspace: { id: string } }
     const workspaceId = sessionBody.workspace.id
-    await queryRows(
-      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
-      ['folder-before-first-selection', workspaceId, '777', '/unrelated', 'unrelated'],
-    )
-
     const selected = await select('10001')
     expect(selected.status, await selected.clone().text()).toBe(200)
-    expect(await selected.json()).toEqual({ status: 'ready' })
+    const selectedBody = await selected.json() as { status: string; projectId: string }
+    expect(selectedBody.status).toBe('ready')
+    expect(selectedBody.projectId).toBeTruthy()
+    await queryRows(`DELETE FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId" IN (SELECT id FROM "Project" WHERE "jiraProjectId" IN ('10002','10003'))`, [workspaceId])
 
     const saved = await queryRows<{
       jiraProjectKey: string
@@ -180,7 +174,7 @@ describe('Jira/Xray project selection', () => {
       projectStatuses: Array<{ id: string; name: string }>
       projectReadyAt: Date
     }>(
-      'SELECT "jiraProjectKey", "jiraProjectId", "testIssueTypeName", "projectStatuses", "projectReadyAt" FROM "Workspace" WHERE "jiraProjectKey" = \'ONEDS\'',
+      'SELECT p."jiraProjectKey", p."jiraProjectId", p."testIssueTypeName", p."projectStatuses", p."projectReadyAt" FROM "Project" p JOIN "WorkspaceProject" a ON a."projectId"=p.id JOIN "Workspace" w ON w.id=a."workspaceId" WHERE w."cloudId" = \'fake-cloud-one\' AND p."jiraProjectKey" = \'ONEDS\'',
     )
     expect(saved[0]).toMatchObject({
       jiraProjectKey: 'ONEDS',
@@ -194,7 +188,7 @@ describe('Jira/Xray project selection', () => {
     expect(saved[0]?.projectReadyAt).toBeTruthy()
 
     expect(
-      await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-before-first-selection']),
+      await queryRows('SELECT id FROM "WorkspaceProject" WHERE "workspaceId"=$1', [workspaceId]),
     ).toHaveLength(1)
     const workspaceRows = await queryRows<{ ownerId: string }>(
       'SELECT "ownerId" FROM "Workspace" WHERE id = $1',
@@ -203,66 +197,53 @@ describe('Jira/Xray project selection', () => {
     const workspace = workspaceRows[0]
     expect(workspace).toBeTruthy()
 
-    // A draft in this workspace blocks replacement and preserves both the cache and selection.
+    // Project association retains prior cache and remains additive despite user drafts.
+    const projectDbId = selectedBody.projectId
     await queryRows(
-      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
-      ['folder-old-project', workspaceId, '10001', '/old', 'old'],
+      'INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)',
+      ['folder-old-project', projectDbId, '/old', 'old'],
     )
     await queryRows(
-      'INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, now())',
-      ['test-old-project', workspaceId, '10001', 'issue-old', 'ONEDS-1', 'Cucumber'],
+      'INSERT INTO "TestCase" (id, "projectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())',
+      ['test-old-project', projectDbId, 'issue-old', 'ONEDS-1', 'Cucumber'],
     )
     await queryRows(
       'INSERT INTO "TestCaseSnapshot" (id, "testCaseId", summary, labels, status, fingerprint) VALUES ($1, $2, $3, $4, $5, $6)',
       ['snapshot-old-project', 'test-old-project', 'Old summary', [], 'Ready', 'old-fingerprint'],
     )
     await queryRows(
-      'INSERT INTO "TestCaseDraft" (id, "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, now())',
-      ['draft-old-project', 'test-old-project', 'Changed summary'],
+      'INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, $4, now())',
+      ['draft-old-project', workspace!.ownerId, 'test-old-project', 'Changed summary'],
     )
-    const blocked = await select('10002', true)
-    expect(blocked.status).toBe(409)
-    expect(await blocked.text()).toContain('Sync or discard unsynced drafts')
+    const switchedToDemo = await select('10002')
+    expect(switchedToDemo.status).toBe(200)
     expect(
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-old-project']),
     ).toHaveLength(1)
     expect(
-      await queryRows('SELECT "jiraProjectId" FROM "Workspace" WHERE id = $1', [workspaceId]),
-    ).toEqual([{ jiraProjectId: '10001' }])
+      await queryRows('SELECT count(*)::int AS count FROM "WorkspaceProject" WHERE "workspaceId" = $1', [workspaceId]),
+    ).toEqual([{ count: 2 }])
 
     // Drafts and caches in another workspace are isolated from this switch.
     const otherWorkspaceId = 'workspace-other-project'
     await queryRows(
       'INSERT INTO "Workspace" (id, "ownerId", "siteOrigin", "siteUrl", name, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, now(), now())',
-      [
-        otherWorkspaceId,
-        workspace!.ownerId,
-        'https://other.atlassian.net',
-        'https://other.atlassian.net',
-        'Other workspace',
-      ],
+      [otherWorkspaceId, workspace!.ownerId, 'https://other.atlassian.net', 'https://other.atlassian.net', 'Other workspace'],
     )
-    await queryRows(
-      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
-      ['folder-other-project', otherWorkspaceId, '10001', '/other', 'other'],
-    )
-    await queryRows(
-      'INSERT INTO "TestCase" (id, "workspaceId", "jiraProjectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, now())',
-      ['test-other-project', otherWorkspaceId, '10001', 'issue-other', 'ONEDS-2', 'Cucumber'],
-    )
-    await queryRows(
-      'INSERT INTO "TestCaseDraft" (id, "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, now())',
-      ['draft-other-project', 'test-other-project', 'Other changed summary'],
-    )
+    await queryRows('INSERT INTO "Project" (id, "tenantIdentityKind", "tenantIdentity", "jiraProjectId", "jiraProjectKey", "jiraProjectName", "testIssueTypeId", "testIssueTypeName", "projectStatuses", "updatedAt") VALUES ($1, \'SITE_ORIGIN\', \'https://other.atlassian.net\', \'10001\', \'OTHER\', \'Other\', \'100\', \'Test\', \'[]\', now()) ON CONFLICT ("tenantIdentityKind", "tenantIdentity", "jiraProjectId") DO NOTHING', ['other-tenant-project'])
+    await queryRows('INSERT INTO "WorkspaceProject" (id, "workspaceId", "projectId") VALUES ($1, $2, $3)', ['other-workspace-access', otherWorkspaceId, 'other-tenant-project'])
+    await queryRows('INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)', ['folder-other-project', 'other-tenant-project', '/other', 'other'])
+    await queryRows('INSERT INTO "TestCase" (id, "projectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())', ['test-other-project', 'other-tenant-project', 'issue-other', 'OTHER-2', 'Cucumber'])
+    await queryRows('INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, $4, now())', ['draft-other-project', workspace!.ownerId, 'test-other-project', 'Other changed summary'])
     await queryRows('DELETE FROM "TestCaseDraft" WHERE id = $1', ['draft-old-project'])
-    const switched = await select('10002', true)
+    const switched = await select('10002')
     expect(switched.status, await switched.clone().text()).toBe(200)
     expect(
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-old-project']),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     expect(
       await queryRows('SELECT id FROM "TestCase" WHERE id = $1', ['test-old-project']),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     expect(
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-other-project']),
     ).toHaveLength(1)
@@ -270,79 +251,47 @@ describe('Jira/Xray project selection', () => {
       await queryRows('SELECT id FROM "TestCaseDraft" WHERE id = $1', ['draft-other-project']),
     ).toHaveLength(1)
 
-    // A readiness failure preserves cache for the currently selected project.
+    // A failed Xray probe does not create a project association.
     await queryRows(
-      'INSERT INTO "Folder" (id, "workspaceId", "jiraProjectId", path, name) VALUES ($1, $2, $3, $4, $5)',
-      ['folder-current-project', workspaceId, '10002', '/current', 'current'],
+      'INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)',
+      ['folder-current-project', (await queryRows<{ id: string }>(`SELECT id FROM "Project" WHERE id=$1`, [selectedBody.projectId]))[0]!.id, '/current', 'current'],
     )
-    const failedProbeSwitch = await select('999', true)
+    const failedProbeSwitch = await select('999')
     expect(failedProbeSwitch.status).toBe(403)
     expect(
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-current-project']),
     ).toHaveLength(1)
 
-    // Force the final workspace update to fail after cleanup; the transaction must roll back.
-    await queryRows(`CREATE FUNCTION reject_project_switch() RETURNS trigger AS $$
-      BEGIN
-        IF NEW."jiraProjectId" = '10001' THEN RAISE EXCEPTION 'forced update failure'; END IF;
-        RETURN NEW;
-      END;
-    $$ LANGUAGE plpgsql`)
-    await queryRows(
-      'CREATE TRIGGER reject_project_switch BEFORE UPDATE ON "Workspace" FOR EACH ROW EXECUTE FUNCTION reject_project_switch()',
-    )
-    let failedPersistence: Response
-    try {
-      failedPersistence = await select('10001', true)
-    } finally {
-      await queryRows('DROP TRIGGER reject_project_switch ON "Workspace"')
-      await queryRows('DROP FUNCTION reject_project_switch()')
-    }
-    expect(failedPersistence!.status).toBe(500)
-    expect(
-      await queryRows('SELECT "jiraProjectId" FROM "Workspace" WHERE id = $1', [workspaceId]),
-    ).toEqual([{ jiraProjectId: '10002' }])
+    const addedAgain = await select('10001')
+    expect(addedAgain.status).toBe(200)
     expect(
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-current-project']),
     ).toHaveLength(1)
 
-    // Return the shared fixture workspace to its original project for later tests.
-    const restored = await select('10001', true)
-    expect(restored.status, await restored.clone().text()).toBe(200)
     await queryRows('DELETE FROM "Workspace" WHERE id = $1', [otherWorkspaceId])
     await queryRows('DELETE FROM "Folder" WHERE id = $1', ['folder-current-project'])
-    await queryRows('DELETE FROM "Folder" WHERE id = $1', ['folder-before-first-selection'])
 
-    const unconfirmed = await select('10002')
-    expect(unconfirmed.status).toBe(409)
-    const failedSwitch = await select('999', true)
+    const failedSwitch = await select('999')
     expect(failedSwitch.status).toBe(403)
-    const stillSelected = await queryRows<{ jiraProjectKey: string }>(
-      'SELECT "jiraProjectKey" FROM "Workspace" WHERE "jiraProjectKey" = \'ONEDS\'',
-    )
-    expect(stillSelected).toHaveLength(1)
+    const stillAssociated = await queryRows('SELECT id FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId"=$2', [workspaceId, selectedBody.projectId])
+    expect(stillAssociated).toHaveLength(1)
   })
 
-  it('keeps unready workspaces out of project repository pages and APIs', async () => {
+  it('requires an explicit choice for an unknown repository project', async () => {
     const rows = await queryRows<{ id: string }>(
-      'SELECT id FROM "Workspace" WHERE "jiraProjectKey" = \'ONEDS\' LIMIT 1',
+      'SELECT p.id FROM "Project" p JOIN "WorkspaceProject" a ON a."projectId"=p.id JOIN "Workspace" w ON w.id=a."workspaceId" WHERE p."jiraProjectKey" = \'ONEDS\' LIMIT 1',
     )
-    const unreadyWorkspaceId = rows[0]?.id
-    expect(unreadyWorkspaceId).toBeTruthy()
-    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = NULL WHERE id = $1', [
-      unreadyWorkspaceId,
-    ])
+    expect(rows).toHaveLength(1)
     const page = await fetch(`${server.url}/repository`, {
       headers: { cookie },
       redirect: 'manual',
     })
     expect(page.status).toBe(302)
-    expect(page.headers.get('location')).toBe('/settings')
+    expect(page.headers.get('location')).toBe('/settings?chooseProject=1')
+    const ambiguous = await fetch(`${server.url}/repository?project=unknown`, { headers: { cookie }, redirect: 'manual' })
+    expect(ambiguous.status).toBe(302)
+    expect(ambiguous.headers.get('location')).toBe('/settings?chooseProject=1')
     const api = await fetch(`${server.url}/api/repository/ready`, { headers: { cookie } })
-    expect(api.status).toBe(409)
-
-    await queryRows('UPDATE "Workspace" SET "projectReadyAt" = now() WHERE id = $1', [
-      unreadyWorkspaceId,
-    ])
+    expect(api.status).toBe(200)
   })
 })

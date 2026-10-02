@@ -372,10 +372,25 @@
       }
     },
     {
+      "id": "US-08.2",
+      "title": "Multi-project repository and pull controls",
+      "file": "US-08.2-multi-project-repository.md",
+      "dependsOn": ["US-08.1"],
+      "behavior": "Users switch among projects with retained tenant/project-scoped shared remote caches; drafts and their base versions remain user-specific; header project search and folder/full-project refresh controls are project-scoped.",
+      "verification": [
+        "pnpm check",
+        "pnpm test:int tests/integration/project-selection.test.ts",
+        "pnpm test:int tests/integration/project-cache.test.ts",
+        "pnpm test:e2e e2e/us-08-2-multi-project-repository.spec.ts"
+      ],
+      "state": "active",
+      "evidence": null
+    },
+    {
       "id": "US-09",
       "title": "Bulk editor grid with local drafts",
       "file": "US-09-bulk-editor-grid.md",
-      "dependsOn": ["US-08.1"],
+      "dependsOn": ["US-08.2"],
       "behavior": "Virtualized grid edits summary/labels/status as server-side drafts with autosave, validation, undo; no remote writes; no-op edits remove drafts.",
       "verification": [
         "pnpm check",

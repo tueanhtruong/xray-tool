@@ -1,16 +1,11 @@
 import { getHeader, getRequestURL, readBody } from 'h3'
 import { z } from 'zod'
 import { JiraProjectApiError } from '../../integrations/jira/projects'
-import {
-  getWorkspaceProjectReadiness,
-  ProjectSelectionError,
-  selectWorkspaceProject,
-} from '../../services/project-selection'
+import { ProjectSelectionError, selectWorkspaceProject } from '../../services/project-selection'
 import { getAppSession } from '../../utils/session'
 
 const bodySchema = z.object({
   projectId: z.string().regex(/^\d+$/).max(32),
-  confirmChange: z.boolean().optional().default(false),
 })
 
 export default defineEventHandler(async (event) => {
@@ -27,14 +22,9 @@ export default defineEventHandler(async (event) => {
   if (!workspace) throw httpError(404, 'Workspace not found.')
   const parsed = bodySchema.safeParse(await readBody(event))
   if (!parsed.success) throw httpError(400, 'Choose a valid Jira project.')
-  const previous = await getWorkspaceProjectReadiness(workspace.id)
-  if (
-    previous?.projectReadyAt && previous.jiraProjectId !== parsed.data.projectId &&
-    !parsed.data.confirmChange
-  ) throw httpError(409, 'Confirm changing the selected Jira project.')
   try {
-    await selectWorkspaceProject(workspace.id, parsed.data.projectId, parsed.data.confirmChange)
-    return { status: 'ready' }
+    const selected = await selectWorkspaceProject(workspace.id, parsed.data.projectId)
+    return { status: 'ready', projectId: selected.id, jiraProjectId: parsed.data.projectId }
   } catch (error) {
     if (error instanceof ProjectSelectionError || error instanceof JiraProjectApiError) {
       throw httpError(error.statusCode, error.message)

@@ -55,6 +55,10 @@ are not used; assert computed design-token colors instead.
 test indexes, and on-demand test details
 against a dedicated sandbox project. It requires `SANDBOX_XRAY_CLIENT_ID`,
 `SANDBOX_XRAY_CLIENT_SECRET`, and `SANDBOX_XRAY_PROJECT_ID`; `SANDBOX_XRAY_BASE_URL` is optional.
+For optional shared-cache equivalence comparison, configure `SANDBOX_XRAY_CLIENT_ID_2` and
+`SANDBOX_XRAY_CLIENT_SECRET_2`; US-08.2 accepts equivalence as a working assumption and the check is
+not an implementation gate. It verifies a sampled folder subtree and documents that moved-out or
+deleted issue reconciliation is not established, so folder-only refresh remains unavailable.
 
 - Run only against a **dedicated sandbox** Jira/Xray site and project (`SANDBOX_*` variables).
   Never a production site.

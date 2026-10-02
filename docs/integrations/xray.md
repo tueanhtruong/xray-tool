@@ -22,6 +22,11 @@ The client uses these Xray Cloud API v2 endpoints:
 - The lightweight test-index pull uses `getTests(projectId, limit, start)` with a maximum page limit
   of 100 and reads `total`, `start`, `limit`, `issueId`, `folder { path }`, and Jira `key` and
   `summary` only. It does not request test type, Gherkin, labels, status, or update timestamps.
+- Xray's `getTests` also accepts `folder: FolderSearchInput`, with a folder path and optional
+  `includeDescendants` flag. The sandbox contract check has verified a non-empty sample subtree
+  against the full project index. This query alone cannot reveal tests that moved out of the selected
+  subtree or were deleted remotely; a folder-only refresh must remain disabled until such stale
+  records can be reconciled without a full-project membership scan.
 - Opening a test fetches current details with `getTests(jql: "key = ...", limit: 1)`; editor selection
   batches keys into one JQL `IN` query (up to 100 tests per request). Both read issue identity,
   test type, Gherkin, folder, Xray `lastModified`, and Jira key, summary, labels, status, and updated.
@@ -76,3 +81,7 @@ unavailability for tests. Normal development and verification do not require Xra
 For live contract testing, use only the dedicated sandbox and `SANDBOX_XRAY_CLIENT_ID` /
 `SANDBOX_XRAY_CLIENT_SECRET` values from the local secret store. Never copy real credentials, JWTs,
 or unsanitized responses into fixtures, logs, or documentation.
+
+The optional `SANDBOX_XRAY_CLIENT_ID_2` / `SANDBOX_XRAY_CLIENT_SECRET_2` pair compares complete
+folder trees and paginated test indexes from a second independently authorized Xray API key before
+enabling cross-workspace shared project caches.

@@ -16,17 +16,18 @@ interface TestDetail {
 const route = useRoute()
 const { workspace } = useWorkspaceSession()
 const key = computed(() => String(route.params.key ?? ''))
+const projectId = computed(() => typeof route.query.project === 'string' ? route.query.project : '')
 
 // Details are fetched fresh on every open and are never cached client-side.
 const { data, error, status, refresh } = await useFetch<TestDetail>(
-  () => `/api/tests/by-key/${encodeURIComponent(key.value)}`,
-  { key: `test-detail-${key.value}`, lazy: true, getCachedData: () => undefined },
+  () => `/api/tests/by-key/${encodeURIComponent(key.value)}?project=${encodeURIComponent(projectId.value)}`,
+  { key: () => `test-detail-${projectId.value}-${key.value}`, lazy: true, getCachedData: () => undefined },
 )
 
 const notFound = computed(() => error.value?.statusCode === 404)
 const backTo = computed(() => {
   const query: Record<string, string> = {}
-  for (const name of ['folder', 'q', 'descendants'] as const) {
+  for (const name of ['project', 'folder', 'q', 'descendants'] as const) {
     const value = route.query[name]
     if (typeof value === 'string' && value) query[name] = value
   }

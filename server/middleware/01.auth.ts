@@ -17,7 +17,7 @@ const PUBLIC_PATHS = new Set([
 ])
 
 // Pages that require a session. `/`, `/login` and `/auth/*` are public.
-const PROTECTED_PAGES = ['/settings', '/repository', '/tests']
+const PROTECTED_PAGES = ['/settings', '/repository', '/tests', '/projects']
 
 function isProtectedPage(pathname: string): boolean {
   return PROTECTED_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))

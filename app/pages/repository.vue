@@ -17,7 +17,8 @@ const SIDEBAR_RESIZE_STEP = 16
 
 const route = useRoute()
 const router = useRouter()
-const { workspace } = useWorkspaceSession()
+const { workspace, refresh: refreshSession } = useWorkspaceSession()
+const currentProjectId = computed(() => workspace.value?.currentProjectId ?? null)
 
 const selectedFolder = computed(() =>
   typeof route.query.folder === 'string' ? route.query.folder : '',
@@ -76,6 +77,7 @@ function onSidebarResizeKeydown(event: KeyboardEvent) {
 
 const folderQuery = await useFetch<{ folders: FolderNode[]; foldersPulledAt: string | null }>(
   '/api/folders',
+  { query: computed(() => ({ project: currentProjectId.value ?? '' })), watch: [currentProjectId] },
 )
 const filters = computed(() => ({
   folder: selectedFolder.value || undefined,
@@ -84,13 +86,19 @@ const filters = computed(() => ({
   offset: String(offset.value),
   limit: String(PAGE_SIZE),
 }))
-const testQuery = useFetch<Page>('/api/tests', { query: filters, watch: [filters], lazy: true })
+const testQuery = useFetch<Page>('/api/tests', {
+  query: computed(() => ({ ...filters.value, project: currentProjectId.value ?? '' })),
+  watch: [filters, currentProjectId],
+  lazy: true,
+  key: () => `repository-tests-${currentProjectId.value}`,
+})
 
 const tests = computed(() => testQuery.data.value?.values ?? [])
 const total = computed(() => testQuery.data.value?.total ?? 0)
 const neverPulled = computed(() => !folderQuery.data.value?.foldersPulledAt)
 const linkQuery = computed(() => {
   const query: Record<string, string> = {}
+  if (currentProjectId.value) query.project = currentProjectId.value
   if (selectedFolder.value) query.folder = selectedFolder.value
   if (search.value) query.q = search.value
   if (includeDescendants.value) query.descendants = 'true'
@@ -116,9 +124,16 @@ function updateQuery(patch: Record<string, string | number | undefined>) {
   void router.push({ query: Object.fromEntries(entries) as Record<string, string> })
 }
 
-// --- folder tree state (expansion is remembered per workspace)
+// --- folder tree state (expansion is remembered per project)
 const expanded = ref<string[]>([])
-const storageKey = computed(() => `repository-folders:${workspace.value?.id}`)
+const storageKey = computed(() => `repository-folders:${currentProjectId.value}`)
+watch(storageKey, () => {
+  try {
+    expanded.value = JSON.parse(localStorage.getItem(storageKey.value) ?? '[]') as string[]
+  } catch {
+    expanded.value = []
+  }
+})
 
 function toggleFolder(path: string) {
   expanded.value = expanded.value.includes(path)
@@ -132,8 +147,14 @@ function chooseFolder(path: string) {
 }
 
 // --- pull
-const pull = useRepositoryPull(async () => {
+const pull = useRepositoryPull(currentProjectId, async () => {
   await Promise.all([folderQuery.refresh(), testQuery.refresh()])
+})
+
+watch(currentProjectId, async () => {
+  await refreshSession()
+  selected.value = []
+  await pull.resume()
 })
 
 function relativePullTime(value: string | null | undefined): string {
@@ -185,8 +206,15 @@ async function openInEditor() {
   opening.value = true
   openError.value = ''
   try {
-    await $fetch('/api/tests/selection', { method: 'POST', body: { ids: [id] } })
-    await navigateTo({ path: `/tests/${encodeURIComponent(test.key)}`, query: linkQuery.value })
+    await $fetch('/api/tests/selection', {
+      method: 'POST',
+      query: { project: currentProjectId.value },
+      body: { ids: [id] },
+    })
+    await navigateTo({
+      path: `/tests/${encodeURIComponent(test.key)}`,
+      query: { ...linkQuery.value, project: currentProjectId.value ?? undefined },
+    })
   } catch (error) {
     openError.value =
       error &&
@@ -235,11 +263,11 @@ useHead({ title: 'Repository · XrayBulk' })
       <button
         type="button"
         class="mx-2 mt-3 rounded-lg border border-default bg-elevated px-3 py-1 text-xs hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
-        :disabled="pull.pulling.value"
+        :disabled="pull.pulling.value || !currentProjectId"
         data-testid="pull-from-xray"
         @click="pull.start"
       >
-        ↻ Pull from Xray
+        ↻ Refresh all project tests
       </button>
       <div
         role="separator"
@@ -278,7 +306,7 @@ useHead({ title: 'Repository · XrayBulk' })
       <ErrorBanner
         v-if="pull.error.value"
         class="mb-3"
-        :message="`${pull.error.value}${pull.status.value.requestId ? ` Request ID: ${pull.status.value.requestId}` : ''}`"
+        :message="`${workspace?.jiraProjectKey ?? 'Project'}: ${pull.error.value}${pull.status.value.requestId ? ` Request ID: ${pull.status.value.requestId}` : ''}`"
         data-testid="pull-error"
       />
       <p
@@ -287,26 +315,27 @@ useHead({ title: 'Repository · XrayBulk' })
         class="mb-3 font-medium text-(--ok)"
         data-testid="pull-success"
       >
-        {{ pull.message.value }}
+        {{ workspace?.jiraProjectKey }}: {{ pull.message.value }}
       </p>
       <p v-if="pull.pulling.value" role="status" class="mb-3" data-testid="pull-progress">
-        Pulling {{ pull.status.value.fetched }} / {{ pull.status.value.total ?? '?' }} tests…
+        {{ workspace?.jiraProjectKey }}: pulling {{ pull.status.value.fetched }} /
+        {{ pull.status.value.total ?? '?' }} tests…
       </p>
       <ErrorBanner v-if="openError" class="mb-3" :message="openError" />
 
       <PageCard v-if="neverPulled" data-testid="never-pulled">
         <EmptyState
           title="This repository has not been pulled yet"
-          description="Pull from Xray to load this project's folders and tests."
+          description="Refresh this project's folder and test index from Xray."
         >
           <button
             type="button"
             class="rounded-lg bg-primary px-4 py-2 font-medium text-inverted hover:opacity-90 disabled:opacity-45"
-            :disabled="pull.pulling.value"
+            :disabled="pull.pulling.value || !currentProjectId"
             data-testid="pull-cta"
             @click="pull.start"
           >
-            Pull from Xray
+            Refresh all project tests
           </button>
         </EmptyState>
       </PageCard>

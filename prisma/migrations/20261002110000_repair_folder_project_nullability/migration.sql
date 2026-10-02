@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE "Folder" ALTER COLUMN "projectId" DROP NOT NULL;
+
+COMMIT;

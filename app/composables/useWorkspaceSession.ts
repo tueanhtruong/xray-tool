@@ -4,9 +4,21 @@ export interface WorkspaceSummary {
   siteUrl: string
   jiraConnected: boolean
   xrayConnected: boolean
-  projectReady: boolean
-  jiraProjectKey: string | null
-  jiraProjectName: string | null
+  projects: Array<{
+    id: string
+    jiraProjectId: string
+    jiraProjectKey: string
+    jiraProjectName: string
+    projectReadyAt: string
+    foldersPulledAt: string | null
+  }>
+  projectReady?: boolean
+  jiraProjectId?: string | null
+  jiraProjectKey?: string | null
+  jiraProjectName?: string | null
+  currentProjectId?: string | null
+  foldersPulledAt?: string | null
+  legacyProject?: string | null
 }
 
 /**
@@ -27,7 +39,24 @@ export function useWorkspaceSession() {
     lazy: false,
   })
 
-  const workspace = computed(() => (signedIn.value ? (fetched.data.value?.workspace ?? null) : null))
+  const workspace = computed(() => {
+    if (!signedIn.value || !fetched.data.value?.workspace) return null
+    const currentProjectId = useRoute().query.project
+    const projects = fetched.data.value.workspace.projects
+    const resolvedProjectId = typeof currentProjectId === 'string'
+      ? currentProjectId
+      : fetched.data.value.workspace.legacyProject
+    const project = resolvedProjectId ? projects.find((candidate) => candidate.id === resolvedProjectId) : undefined
+    return {
+      ...fetched.data.value.workspace,
+      projectReady: Boolean(project),
+      jiraProjectId: project?.jiraProjectId ?? null,
+      jiraProjectKey: project?.jiraProjectKey ?? null,
+      jiraProjectName: project?.jiraProjectName ?? null,
+      currentProjectId: project?.id ?? null,
+      foldersPulledAt: project?.foldersPulledAt ?? null,
+    }
+  })
 
   async function signOut() {
     await $fetch('/auth/logout', {

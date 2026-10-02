@@ -28,7 +28,14 @@ async function resetOAuthMode(baseUrl: string): Promise<void> {
   await fetch(new URL('/__control', baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ mode: 'single' }),
+    body: JSON.stringify({
+      mode: 'single',
+      projectMode: 'valid',
+      xrayMode: 'valid',
+      xrayFolderMode: 'flat',
+      xrayTestMode: 'five',
+      xrayTestFailureStart: -1,
+    }),
   })
 }
 

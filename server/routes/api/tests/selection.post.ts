@@ -1,9 +1,10 @@
-import { getHeader, getRequestURL, readBody } from 'h3'
+import { getHeader, getQuery, getRequestURL, readBody } from 'h3'
 import { z } from 'zod'
 import { getXrayTestDetailsByKeys } from '../../../integrations/xray/client'
 import { fingerprintTestCase } from '../../../../shared/fingerprint'
 import { asRecord, isReadOnlyTestType, normalizeRemoteTest } from '../../../services/test-details'
 import { getAppSession } from '../../../utils/session'
+import { requireAuthorizedProject } from '../../../services/project-selection'
 
 const bodySchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(100) })
 
@@ -20,11 +21,24 @@ export default defineEventHandler(async (event) => {
   if (!origin || new URL(origin).origin !== getRequestURL(event).origin) throw httpError(403, 'Selection request could not be verified.')
   const workspace = await usePrisma().workspace.findFirst({
     where: { id: session.activeWorkspaceId, ownerId: session.userId },
-    select: { id: true, jiraProjectId: true, projectReadyAt: true },
+    select: { id: true, ownerId: true },
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
-  if (!workspace.projectReadyAt || !workspace.jiraProjectId) throw httpError(409, 'Select and verify a Jira/Xray project before selecting tests.')
-  const projectId = workspace.jiraProjectId
+  const requestedProjectId = getQuery(event).project
+  let authorizedProject = typeof requestedProjectId === 'string'
+    ? await requireAuthorizedProject(workspace.id, requestedProjectId)
+    : undefined
+  if (!authorizedProject) {
+    const projects = await usePrisma().workspaceProject.findMany({
+      where: { workspaceId: workspace.id },
+      select: { projectId: true },
+    })
+    if (projects.length !== 1) throw httpError(409, 'Choose a project before selecting tests.')
+    authorizedProject = await requireAuthorizedProject(workspace.id, projects[0]!.projectId)
+  }
+  if (!authorizedProject) throw httpError(409, 'Choose a project before selecting tests.')
+  const jiraProjectId = authorizedProject.jiraProjectId
+  const sharedProjectId = authorizedProject.id
   const parsed = bodySchema.safeParse(await readBody(event))
   if (!parsed.success || new Set(parsed.data.ids).size !== parsed.data.ids.length) throw httpError(400, 'Choose valid, unique test cases.')
 
@@ -32,16 +46,15 @@ export default defineEventHandler(async (event) => {
   const testCases = await prisma.testCase.findMany({
     where: {
       id: { in: parsed.data.ids },
-      workspaceId: workspace.id,
-      jiraProjectId: projectId,
+      projectId: sharedProjectId,
       origin: 'REMOTE',
       remoteDeletedAt: null,
     },
-    include: { snapshot: true, draft: true },
+    include: { snapshot: true, drafts: { where: { userId: workspace.ownerId } } },
   })
   if (testCases.length !== parsed.data.ids.length) throw httpError(404, 'One or more tests are not in the active project index.')
 
-  const remoteTests = await getXrayTestDetailsByKeys(workspace.id, testCases.map((testCase) => testCase.key))
+  const remoteTests = await getXrayTestDetailsByKeys(workspace.id, testCases.map((testCase) => testCase.key), jiraProjectId)
   const remoteByKey = new Map(remoteTests.map((remote) => [asRecord(remote.jira).key, remote]))
   const details = await Promise.all(testCases.map(async (testCase) => {
     const remote = remoteByKey.get(testCase.key)
@@ -64,18 +77,17 @@ export default defineEventHandler(async (event) => {
 
   const pulledAt = new Date()
   await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "Workspace" WHERE "id" = ${workspace.id} FOR UPDATE`
-    const current = await tx.workspace.findUnique({ where: { id: workspace.id }, select: { jiraProjectId: true } })
-    if (!current || current.jiraProjectId !== projectId) throw httpError(409, 'The selected project changed while loading tests. Retry from the current project.')
+    await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${sharedProjectId} FOR UPDATE`
+    const current = await tx.workspaceProject.findUnique({ where: { workspaceId_projectId: { workspaceId: workspace.id, projectId: sharedProjectId } }, select: { id: true } })
+    if (!current) throw httpError(409, 'Project access changed while loading tests. Retry from the current project.')
     const latestCases = await tx.testCase.findMany({
       where: {
         id: { in: parsed.data.ids },
-        workspaceId: workspace.id,
-        jiraProjectId: projectId,
+        projectId: sharedProjectId,
         origin: 'REMOTE',
         remoteDeletedAt: null,
       },
-      include: { snapshot: true, draft: true },
+      include: { snapshot: true, drafts: { where: { userId: workspace.ownerId } } },
     })
     if (latestCases.length !== parsed.data.ids.length) throw httpError(409, 'A selected test changed while loading. Refresh the repository and retry.')
     const latestById = new Map(latestCases.map((testCase) => [testCase.id, testCase]))
@@ -88,7 +100,7 @@ export default defineEventHandler(async (event) => {
       await tx.testCase.update({ where: { id: latest.id }, data: { testType } })
       if (!latest.snapshot) {
         await tx.testCaseSnapshot.create({ data: { testCaseId: latest.id, ...values, pulledAt } })
-      } else if (latest.snapshot.fingerprint !== values.fingerprint && !latest.draft) {
+      } else if (latest.snapshot.fingerprint !== values.fingerprint && latest.drafts.length === 0) {
         await tx.testCaseSnapshot.update({ where: { testCaseId: latest.id }, data: { ...values, pulledAt } })
       }
     }

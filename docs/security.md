@@ -94,7 +94,9 @@ Redaction (`shared/security/redact.ts`) runs on every entry:
   template literals, `JSON.stringify` and `util.inspect`; `reveal()` returns the value.
 - Cycles become `[Circular]`, depth over 8 becomes `[Truncated]`, strings over 8 KB and arrays over
   200 items are truncated, binary data is summarized. Input objects are never mutated.
-- Request bodies, and query strings, are never logged.
+- Request bodies are never logged. Query parameters are logged as structured fields for diagnosis;
+  sensitive parameter names (including OAuth `code` and `state`) are redacted automatically. Avoid
+  putting other confidential data in query parameters, since values under ordinary names are logged.
 
 ## Request IDs and error responses
 
@@ -102,7 +104,8 @@ Redaction (`shared/security/redact.ts`) runs on every entry:
   reused; anything else is replaced with a UUID, so inbound values cannot inject into logs.
 - Every log line written during a request carries `requestId` automatically (Nitro async context,
   `nitro.experimental.asyncContext`), including lines from services and integration clients.
-- One access-log entry per request: `requestId`, `method`, `path` (no query), `status`, `durationMs`.
+- One access-log entry per request: `requestId`, `method`, `path`, structured `query`, `status`,
+  `durationMs`.
 - Failed `/api/` requests return exactly `{ statusCode, message, requestId }`. 5xx and errors of
   unknown origin get a generic message for the status. Only an error built with `httpError(status,
 message)` (status below 500) may show its own message; never put upstream response text in it.

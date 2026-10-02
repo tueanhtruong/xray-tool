@@ -89,11 +89,19 @@ describe('request IDs on the built server', () => {
     expect(entry).toMatchObject({ path: '/api/does-not-exist', status: 404 })
   })
 
-  it('never logs the query string', async () => {
-    const res = await fetch(`${server.url}/api/health?code=oauth-code-abc123&state=state-xyz789`)
+  it('logs diagnostic query values and redacts OAuth code and state', async () => {
+    const detail = 'Atlassian sign-in could not be completed. Please try again.'
+    const res = await fetch(
+      `${server.url}/api/health?code=oauth-code-abc123&state=state-xyz789&detail=Atlassian+sign-in+could+not+be+completed.+Please+try+again.`,
+    )
     const id = res.headers.get('x-request-id')!
     const entry = await accessEntry(server, id)
     expect(entry.path).toBe('/api/health')
+    expect(entry.query).toEqual({
+      code: '[REDACTED]',
+      state: '[REDACTED]',
+      detail,
+    })
     expect(server.output()).not.toContain('oauth-code-abc123')
     expect(server.output()).not.toContain('state-xyz789')
   })

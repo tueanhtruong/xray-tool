@@ -8,7 +8,7 @@ export interface PullStatus {
 }
 
 /** Starts a full pull, polls its status, and reports completion through `onSucceeded`. */
-export function useRepositoryPull(onSucceeded: () => Promise<void> | void) {
+export function useRepositoryPull(projectId: Ref<string | null>, onSucceeded: () => Promise<void> | void) {
   const pulling = ref(false)
   const error = ref('')
   const message = ref('')
@@ -16,7 +16,8 @@ export function useRepositoryPull(onSucceeded: () => Promise<void> | void) {
   let poll: ReturnType<typeof setInterval> | undefined
 
   async function refreshStatus() {
-    status.value = await $fetch<PullStatus>('/api/pull/status')
+    if (!projectId.value) return
+    status.value = await $fetch<PullStatus>('/api/pull/status', { query: { project: projectId.value } })
   }
 
   function stopPolling() {
@@ -32,10 +33,10 @@ export function useRepositoryPull(onSucceeded: () => Promise<void> | void) {
       stopPolling()
       pulling.value = false
       if (status.value.state === 'succeeded') {
-        message.value = status.value.message ?? 'Pull completed.'
+        message.value = `${projectId.value}: ${status.value.message ?? 'Pull completed.'}`
         await onSucceeded()
       } else if (status.value.state === 'failed') {
-        error.value = status.value.message ?? 'Pull failed.'
+        error.value = `${projectId.value}: ${status.value.message ?? 'Pull failed.'}`
       }
     }, 500)
   }
@@ -45,7 +46,12 @@ export function useRepositoryPull(onSucceeded: () => Promise<void> | void) {
     message.value = ''
     pulling.value = true
     try {
-      await $fetch('/api/pull', { method: 'POST' })
+      if (!projectId.value) throw new Error('Choose a project before refreshing tests.')
+      if (!window.confirm(`Refresh all tests for this project? The complete project index will be refreshed and may take time.`)) {
+        pulling.value = false
+        return
+      }
+      await $fetch('/api/pull', { method: 'POST', query: { project: projectId.value } })
       await refreshStatus()
       startPolling()
     } catch (caught) {
@@ -69,6 +75,12 @@ export function useRepositoryPull(onSucceeded: () => Promise<void> | void) {
   }
 
   onBeforeUnmount(stopPolling)
+
+  watch(projectId, () => {
+    error.value = ''
+    message.value = ''
+    status.value = { state: 'idle', fetched: 0, total: null, folders: null }
+  })
 
   return { pulling, error, message, status, start, resume }
 }
