@@ -220,12 +220,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside))
         class="flex items-center gap-2 text-muted"
         data-testid="header-project"
       >
-        <span
-          >{{ selectedProject.jiraProjectKey
-          }}<span v-if="selectedProject.jiraProjectName">
-            · {{ selectedProject.jiraProjectName }}</span
-          ></span
-        >
+        <span v-if="selectedProject.jiraProjectName"> {{ selectedProject.jiraProjectName }}</span>
         <template v-if="selectedProject">
           <span aria-hidden="true">›</span>
           <NuxtLink
