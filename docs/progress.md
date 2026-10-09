@@ -2,6 +2,26 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-10 — US-09 verified and passing
+
+**Done**
+
+- Committed the US-09.1 backlog docs (`9c182e0`), then activated US-09 (`fbd3cda`) so `pnpm verify` could run on a clean tree.
+- `pnpm verify US-09` passed on the mock target: `pnpm check`, `draft-rules` unit (5 tests), `project-cache` integration (6 tests), and `us-08-repository-browser` e2e (6 tests). US-09 is `passing` at commit `fbd3cda`.
+- Ticked OpenSpec task 5.3 in the archived `2026-10-09-us-09-bulk-editor-grid` change.
+
+**In progress**
+
+- None. No story is `active`.
+
+**Next**
+
+- US-09.1 is the next eligible story (its only dependency, US-09, is passing); activate it when beginning work.
+
+**Open questions**
+
+- `tests/unit/draft-grid-window.test.ts` and `tests/integration/tests-query-api.test.ts` are not in the US-09 verification list and were not part of this gate run.
+
 ## 2026-10-03 — US-08.2 status reconciliation
 
 **Done**

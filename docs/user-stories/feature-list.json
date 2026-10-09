@@ -420,8 +420,30 @@
         "pnpm test:int tests/integration/project-cache.test.ts",
         "pnpm test:e2e e2e/us-08-repository-browser.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "fbd3cdab28a20e678ceaff2cf61a2e65b515d4ce",
+        "verifiedAt": "2026-10-09T17:07:00.184Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 20674
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/draft-rules.test.ts",
+            "durationMs": 638
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/project-cache.test.ts",
+            "durationMs": 3176
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-08-repository-browser.spec.ts",
+            "durationMs": 16429
+          }
+        ]
+      }
     },
     {
       "id": "US-09.1",

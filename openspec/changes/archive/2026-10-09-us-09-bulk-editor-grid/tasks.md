@@ -33,4 +33,4 @@
 
 - [x] 5.1 Update mock fixtures/services and documentation for detail hydration and draft-save behavior without adding remote write behavior.
 - [x] 5.2 Run `pnpm check`, focused draft unit/integration suites, and the existing repository e2e regression spec; do not add a dedicated US-09 e2e spec.
-- [ ] 5.3 Run `pnpm verify US-09` after the implementation is committed to a clean tree; the repository verification gate requires HEAD and a clean working tree, and verification alone updates the story state.
+- [x] 5.3 Run `pnpm verify US-09` after the implementation is committed to a clean tree; the repository verification gate requires HEAD and a clean working tree, and verification alone updates the story state.
