@@ -417,8 +417,8 @@
       "verification": [
         "pnpm check",
         "pnpm test:unit tests/unit/draft-rules.test.ts",
-        "pnpm test:int tests/integration/drafts-api.test.ts",
-        "pnpm test:e2e e2e/us-09-bulk-editor.spec.ts"
+        "pnpm test:int tests/integration/project-cache.test.ts",
+        "pnpm test:e2e e2e/us-08-repository-browser.spec.ts"
       ],
       "state": "not_started",
       "evidence": null

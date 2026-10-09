@@ -2,6 +2,24 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-03 — US-08.2 status reconciliation
+
+**Done**
+
+- Reconciled this log with `feature-list.json`: US-08.2 is `passing`, verified at commit `2382de0a615822adb3a03b7c4d7618e682d61535` on 2026-10-02. The earlier October 1 entries below record the state at that time and are historical.
+
+**In progress**
+
+- None. No story is currently `active`.
+
+**Next**
+
+- US-09 is the next eligible story; activate it when beginning work.
+
+**Open questions**
+
+- None for US-08.2.
+
 ## 2026-10-01 — US-08.2 contract investigation and implementation setup
 
 **Done**

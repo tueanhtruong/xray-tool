@@ -8,6 +8,8 @@ interface Page {
   limit: number
   offset: number
   nextOffset: number | null
+  project: { statuses: Array<{ id: string; name: string }> }
+  draftCount: number
 }
 
 const PAGE_SIZE = 50
@@ -95,6 +97,239 @@ const testQuery = useFetch<Page>('/api/tests', {
 
 const tests = computed(() => testQuery.data.value?.values ?? [])
 const total = computed(() => testQuery.data.value?.total ?? 0)
+const projectDraftCount = useState<number>('project-draft-count', () => 0)
+const hydratedState = reactive(new Map<string, Partial<RepositoryTest>>())
+const localFields = reactive(new Map<string, { summary: string; labels: string[]; status: string }>())
+const saveVersions = reactive(new Map<string, number>())
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const saving = reactive(new Set<string>())
+const pendingSave = reactive(new Map<string, { version: number; patch: { summary?: string; labels?: string[]; status?: string } }>())
+const savePayloads = reactive(new Map<string, { summary?: string; labels?: string[]; status?: string }>())
+const undoStacks = reactive(new Map<string, Array<{ summary: string; labels: string[]; status: string }>>())
+const redoStacks = reactive(new Map<string, Array<{ summary: string; labels: string[]; status: string }>>())
+const testRows = computed(() => tests.value.map((test) => ({
+  ...test,
+  ...(hydratedState.get(test.id) ?? {}),
+  ...(localFields.get(test.id) ?? {}),
+})))
+const displayedDraftCount = computed(() => Math.max(projectDraftCount.value, tests.value.filter((test) => test.hasDraft).length))
+const statusOptions = computed(() => testQuery.data.value?.project.statuses.map((status) => status.name) ?? [])
+
+let hydrationSignature = ''
+async function hydratePage() {
+  const rows = tests.value.filter((test) => !hydratedState.get(test.id)?.hydrated)
+  if (!rows.length) return
+  const requestProjectId = currentProjectId.value
+  if (!requestProjectId) return
+  const signature = `${requestProjectId}:${offset.value}:${rows.map((row) => row.id).join(',')}`
+  if (signature === hydrationSignature) return
+  hydrationSignature = signature
+  for (const row of rows) hydratedState.set(row.id, { ...hydratedState.get(row.id), hydrated: false, hydrationError: undefined })
+  try {
+    const result = await $fetch<{ values: Array<Record<string, unknown>>; failures: Array<{ id: string; message: string }>; draftCount: number }>('/api/tests/selection', {
+      method: 'POST', query: { project: requestProjectId }, body: { ids: rows.map((row) => row.id) },
+    })
+    if (currentProjectId.value !== requestProjectId || hydrationSignature !== signature) return
+    projectDraftCount.value = result.draftCount
+    const failures = new Map(result.failures.map((failure) => [failure.id, failure.message]))
+    for (const row of rows) {
+      const detail = result.values.find((value) => value.id === row.id)
+      if (!detail) {
+        hydratedState.set(row.id, { ...hydratedState.get(row.id), hydrationError: failures.get(row.id) ?? 'Test details could not be loaded.' })
+        continue
+      }
+      const fields = detail.fields as { summary: string; labels: string[]; status: string }
+      hydratedState.set(row.id, {
+        ...hydratedState.get(row.id), summary: fields.summary, labels: fields.labels, status: fields.status,
+        testType: detail.testType as string, gherkin: detail.gherkin as string | null,
+        readOnly: detail.readOnly as boolean, hydrated: true, hydrationError: undefined,
+        hasDraft: detail.changed as boolean,
+        draftFields: detail.changed ? {
+          summary: fields.summary === (detail.base as { summary: string }).summary ? null : fields.summary,
+          labels: null,
+          status: fields.status === (detail.base as { status: string }).status ? null : fields.status,
+        } : null,
+        baseFields: detail.base as RepositoryTest['baseFields'],
+      })
+      localFields.set(row.id, { ...fields })
+    }
+    if (failures.size) hydrationSignature = ''
+  } catch {
+    if (currentProjectId.value !== requestProjectId || hydrationSignature !== signature) return
+    for (const row of rows) hydratedState.set(row.id, { ...hydratedState.get(row.id), hydrationError: 'Test details could not be loaded. Retry.' })
+    hydrationSignature = ''
+  }
+}
+watch([tests, currentProjectId], () => { void hydratePage() }, { immediate: true })
+watch(currentProjectId, () => { hydratedState.clear(); localFields.clear(); hydrationSignature = '' })
+watch(() => testQuery.data.value?.draftCount, (count) => { if (count !== undefined) projectDraftCount.value = count })
+
+async function flushPendingDraft(id: string) {
+  if (saving.has(id)) return
+  const pending = pendingSave.get(id)
+  if (!pending) return
+  saving.add(id)
+  let succeeded = false
+  try {
+    const result = await $fetch<{ fields: { summary: string; labels: string[]; status: string }; changed: boolean; count: number }>(`/api/drafts/${encodeURIComponent(id)}?project=${currentProjectId.value}`, {
+      method: 'PUT', headers: { origin: window.location.origin }, body: pending.patch,
+    })
+    projectDraftCount.value = result.count
+    if (saveVersions.get(id) === pending.version) {
+      localFields.set(id, { ...result.fields })
+      savePayloads.delete(id)
+      const base = testRows.value.find((test) => test.id === id)?.baseFields
+      const changed = base
+        ? result.fields.summary !== base.summary || result.fields.status !== base.status || JSON.stringify(result.fields.labels) !== JSON.stringify(base.labels)
+        : result.changed
+      hydratedState.set(id, { ...hydratedState.get(id), saveState: 'saved', hasDraft: changed })
+    }
+    succeeded = true
+  } catch (error) {
+    const message = error && typeof error === 'object' && 'data' in error && error.data && typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string' ? error.data.message : 'Draft could not be saved. Retry.'
+    hydratedState.set(id, { ...hydratedState.get(id), saveState: 'error', validationError: message })
+  } finally {
+    saving.delete(id)
+    const newest = pendingSave.get(id)
+    if (succeeded && newest?.version === pending.version) pendingSave.delete(id)
+    else if (newest && newest.version !== pending.version) void flushPendingDraft(id)
+    else if (succeeded && (saveVersions.get(id) ?? 0) !== pending.version) {
+      const current = savePayloads.get(id)
+      if (current) {
+        pendingSave.set(id, { version: saveVersions.get(id) ?? 0, patch: { ...current } })
+        void flushPendingDraft(id)
+      }
+    }
+  }
+}
+
+function updateDraft(payload: { id: string; field: 'summary' | 'labels' | 'status'; value: string | string[] }) {
+  const current = localFields.get(payload.id)
+  if (!current) return
+  undoStacks.set(payload.id, [...(undoStacks.get(payload.id) ?? []), { ...current, labels: [...current.labels] }])
+  redoStacks.set(payload.id, [])
+  localFields.set(payload.id, { ...current, [payload.field]: payload.value } as typeof current)
+  savePayloads.set(payload.id, { ...savePayloads.get(payload.id), [payload.field]: payload.value })
+  saveVersions.set(payload.id, (saveVersions.get(payload.id) ?? 0) + 1)
+  const version = saveVersions.get(payload.id)!
+  const invalid = payload.field === 'summary' && (!(payload.value as string).trim() || (payload.value as string).length > 255)
+    ? (!(payload.value as string).trim() ? 'Summary is required.' : 'Summary must be 255 characters or fewer.')
+    : payload.field === 'labels' && (payload.value as string[]).some((label) => /\s/.test(label))
+      ? 'Jira labels cannot contain spaces'
+      : payload.field === 'status' && !statusOptions.value.includes(payload.value as string)
+        ? 'Choose a status available for the Test issue type.' : undefined
+  hydratedState.set(payload.id, { ...hydratedState.get(payload.id), validationError: invalid, saveState: invalid ? 'idle' : 'saving' })
+  const old = saveTimers.get(payload.id)
+  if (old) clearTimeout(old)
+  if (invalid) {
+    const patch = savePayloads.get(payload.id)
+    if (patch && payload.field in patch) {
+      const remaining = Object.fromEntries(Object.entries(patch).filter(([field]) => field !== payload.field)) as typeof patch
+      if (!Object.keys(remaining).length) savePayloads.delete(payload.id)
+      else savePayloads.set(payload.id, remaining)
+    }
+    return
+  }
+  const row = testRows.value.find((test) => test.id === payload.id)
+  const base = row?.baseFields
+  if (base) {
+    const changed = localFields.get(payload.id)!
+    const summaryChanged = changed.summary !== base.summary
+    const labelsChanged = JSON.stringify(changed.labels) !== JSON.stringify(base.labels)
+    const statusChanged = changed.status !== base.status
+    hydratedState.set(payload.id, {
+      ...hydratedState.get(payload.id),
+      hasDraft: summaryChanged || labelsChanged || statusChanged,
+      draftFields: {
+        summary: summaryChanged ? changed.summary : null,
+        labels: labelsChanged ? changed.labels : null,
+        status: statusChanged ? changed.status : null,
+      },
+    })
+  }
+  hydratedState.set(payload.id, { ...hydratedState.get(payload.id), saveState: 'saving' })
+  saveTimers.set(payload.id, setTimeout(() => {
+    const latestPatch = savePayloads.get(payload.id)
+    if (!latestPatch || saveVersions.get(payload.id) !== version) return
+    pendingSave.set(payload.id, { version, patch: { ...latestPatch } })
+    void flushPendingDraft(payload.id)
+  }, 500))
+}
+
+async function revertDraft(id: string) {
+  if (saveTimers.has(id)) clearTimeout(saveTimers.get(id))
+  saveVersions.set(id, (saveVersions.get(id) ?? 0) + 1)
+  savePayloads.delete(id)
+  pendingSave.delete(id)
+  while (saving.has(id)) await new Promise((resolve) => setTimeout(resolve, 10))
+  try {
+    const result = await $fetch<{ count: number }>(`/api/drafts/${encodeURIComponent(id)}?project=${currentProjectId.value}`, { method: 'DELETE', headers: { origin: window.location.origin } })
+    const base = testRows.value.find((test) => test.id === id)?.baseFields
+    if (base) localFields.set(id, { summary: base.summary ?? '', labels: base.labels, status: base.status ?? '' })
+    hydratedState.set(id, { ...hydratedState.get(id), hasDraft: false, draftFields: null, saveState: 'idle' })
+    projectDraftCount.value = result.count
+    await refreshNuxtData()
+  } catch { hydratedState.set(id, { ...hydratedState.get(id), saveState: 'error' }) }
+}
+
+async function restoreDraftFields(id: string, fields: { summary: string; labels: string[]; status: string }) {
+  const current = localFields.get(id)
+  if (!current) return
+  const result = await $fetch<{ fields: typeof fields; count: number }>(`/api/drafts/${encodeURIComponent(id)}?project=${currentProjectId.value}`, {
+    method: 'PUT', headers: { origin: window.location.origin }, body: fields,
+  })
+  localFields.set(id, { ...result.fields })
+  projectDraftCount.value = result.count
+  const original = testRows.value.find((row) => row.id === id)?.baseFields
+  const next = { summary: fields.summary, labels: fields.labels, status: fields.status }
+  const base = original
+  hydratedState.set(id, {
+    ...hydratedState.get(id), hasDraft: base ? next.summary !== base.summary || JSON.stringify(next.labels) !== JSON.stringify(base.labels) || next.status !== base.status : true,
+    draftFields: base ? {
+      summary: next.summary === base.summary ? null : next.summary,
+      labels: JSON.stringify(next.labels) === JSON.stringify(base.labels) ? null : next.labels,
+      status: next.status === base.status ? null : next.status,
+    } : null,
+    saveState: 'saved',
+  })
+}
+
+async function undoCell(id: string) {
+  const stack = undoStacks.get(id) ?? []
+  const previous = stack[stack.length - 1]
+  if (!previous) return
+  undoStacks.set(id, stack.slice(0, -1))
+  redoStacks.set(id, [...(redoStacks.get(id) ?? []), { ...localFields.get(id)!, labels: [...localFields.get(id)!.labels] }])
+  await restoreDraftFields(id, previous)
+}
+
+async function redoCell(id: string) {
+  const stack = redoStacks.get(id) ?? []
+  const next = stack[stack.length - 1]
+  if (!next) return
+  redoStacks.set(id, stack.slice(0, -1))
+  undoStacks.set(id, [...(undoStacks.get(id) ?? []), { ...localFields.get(id)!, labels: [...localFields.get(id)!.labels] }])
+  await restoreDraftFields(id, next)
+}
+
+function onGridKeydown(event: KeyboardEvent) {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return
+  const row = (event.target as HTMLElement).closest<HTMLElement>('[data-testcase-id]')
+  const id = row?.dataset.testcaseId
+  if (!id) return
+  event.preventDefault()
+  if (event.shiftKey) void redoCell(id)
+  else void undoCell(id)
+}
+
+function retryHydration(id: string) { hydratedState.delete(id); hydrationSignature = ''; void hydratePage() }
+function retrySave(id: string) {
+  const patch = savePayloads.get(id)
+  if (!patch) return
+  const version = saveVersions.get(id) ?? 0
+  pendingSave.set(id, { version, patch: { ...patch } })
+  void flushPendingDraft(id)
+}
 const neverPulled = computed(() => !folderQuery.data.value?.foldersPulledAt)
 const linkQuery = computed(() => {
   const query: Record<string, string> = {}
@@ -351,6 +586,12 @@ useHead({ title: 'Repository · XrayBulk' })
             @input="onSearchInput(($event.target as HTMLInputElement).value)"
           />
           <span class="text-muted" data-testid="result-count">{{ total }} tests</span>
+          <span class="text-muted" data-testid="changed-count">{{ displayedDraftCount }} tests changed</span>
+          <UButton
+            :disabled="displayedDraftCount === 0"
+            data-testid="review-changes"
+            @click="navigateTo({ path: '/review', query: { project: currentProjectId ?? undefined } })"
+          >Review {{ displayedDraftCount }} changes</UButton>
           <label class="inline-flex items-center gap-2">
             <input
               type="checkbox"
@@ -397,14 +638,23 @@ useHead({ title: 'Repository · XrayBulk' })
           />
         </PageCard>
         <template v-else>
+          <div @keydown.capture="onGridKeydown">
           <TestList
-            :tests="tests"
+            :tests="testRows"
             :selected-ids="selected"
             :link-query="linkQuery"
             :busy="testQuery.status.value === 'pending'"
+            :statuses="statusOptions"
+            :draft-count="projectDraftCount"
             @toggle="toggleSelected"
             @toggle-all="toggleAll"
+            @update="updateDraft"
+            @revert="revertDraft"
+            @retry-hydration="retryHydration"
+            @retry-save="retrySave"
           />
+          </div>
+          <p class="mt-3 text-xs text-muted">Edits are saved as local drafts. Nothing is written to Xray until you review and sync.</p>
           <div class="mt-3 flex items-center justify-between gap-2">
             <span class="text-muted">{{ total }} tests</span>
             <div class="flex gap-2">

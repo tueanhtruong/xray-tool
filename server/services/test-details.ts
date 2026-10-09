@@ -1,4 +1,5 @@
 import { getXrayTestDetailsByKey, type XrayTestDetails } from '../integrations/xray/client'
+import { composeDraftFields } from '../../shared/drafts/rules'
 
 export function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -89,13 +90,31 @@ export async function fetchFreshTestDetails(workspaceId: string, testCase: Index
     throw httpError(404, 'The indexed test no longer matches the requested Xray issue.')
   }
   const normalized = normalizeRemoteTest(remote)
+  const userId = (await usePrisma().workspace.findFirst({ where: { id: workspaceId }, select: { ownerId: true } }))?.ownerId
+  const draft = userId
+    ? await usePrisma().testCaseDraft.findUnique({ where: { userId_testCaseId: { userId, testCaseId: testCase.id } } })
+    : null
+  const base = draft
+    ? { summary: draft.baseSummary ?? '', labels: draft.baseLabels, status: draft.baseStatus ?? '' }
+    : null
+  const fields = draft?.baseAvailable && base
+    ? composeDraftFields(base, {
+        summary: draft.summary,
+        labels: Array.isArray(draft.labels) && draft.labels.every((label) => typeof label === 'string') ? draft.labels as string[] : null,
+        status: draft.status,
+      })
+    : { summary: normalized.summary, labels: normalized.labels, status: normalized.status }
   return {
     ...testCase,
-    summary: normalized.summary,
-    labels: normalized.labels,
-    status: normalized.status,
+    summary: fields.summary,
+    labels: fields.labels,
+    status: fields.status,
     testType: normalized.testType ?? 'Unknown',
     gherkin: normalized.gherkin,
     readOnly: isReadOnlyTestType(normalized.testType),
+    base,
+    fields,
+    changed: Boolean(draft?.baseAvailable),
+    draftAvailable: !draft || draft.baseAvailable,
   }
 }

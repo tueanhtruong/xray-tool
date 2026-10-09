@@ -33,6 +33,14 @@ const selectedProject = computed(() => {
       : workspace.value?.currentProjectId
   return workspace.value?.projects.find((project) => project.id === id) ?? null
 })
+const draftCount = useState<number>('project-draft-count', () => 0)
+watch(() => selectedProject.value?.id, async (id) => {
+  if (!id || !signedIn.value) { draftCount.value = 0; return }
+  try {
+    const result = await $fetch<{ count: number }>(`/api/projects/${encodeURIComponent(id)}/drafts`)
+    draftCount.value = result.count
+  } catch { draftCount.value = 0 }
+}, { immediate: true })
 
 async function searchProjects(startAt = 0) {
   projectSearchBusy.value = true
@@ -354,8 +362,9 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside))
           <UButton @click="keepDraftsAndSwitch">Switch and keep drafts</UButton>
         </div>
       </div>
-      <!-- Reserved for the US-09 draft-count chip; renders nothing until drafts exist. -->
-      <slot name="draft-chip" />
+      <span v-if="signedIn && selectedProject" class="rounded-full border border-default px-2 py-1 text-xs" data-testid="draft-count-chip">
+        {{ draftCount }} drafts
+      </span>
       <div class="ml-auto flex items-center gap-2">
         <button
           type="button"

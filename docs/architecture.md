@@ -104,6 +104,14 @@ are SHA-256 of JSON containing trimmed summary, sorted labels, trimmed status, a
 CRLF/CR normalized to LF and surrounding whitespace trimmed. Folder and test-index queries are
 cache-only; detail and editor-selection flows are the only repository reads that call Xray.
 
+US-09 hydrates only the current bounded repository page through the existing editor-selection
+detail contract. Hydration returns the current user's effective draft fields/base and editability,
+reports per-test failures, and updates only prepared snapshots/test type; the lightweight index
+remains unchanged. Draft APIs derive the user from the session, authorize the URL project, and
+serialize saves/reverts under the project lock. The repository grid virtualizes its current page,
+while retaining server pagination; detail and grid edits share the same validation and draft rules.
+Draft counts are scoped to user and project. Editing requests never invoke Jira/Xray mutations.
+
 ## UI routes and design system (US-08.1 / US-08.2)
 
 | Route         | Screen                                             | Access                    |

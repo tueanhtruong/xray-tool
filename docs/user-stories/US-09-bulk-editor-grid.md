@@ -77,9 +77,9 @@ Feature: Bulk editor grid
 ## Verification
 
 1. Static: `pnpm check`
-2. Runtime: `pnpm test:unit tests/unit/draft-rules.test.ts`, `pnpm test:int tests/integration/drafts-api.test.ts`
-3. End-to-end: `pnpm test:e2e e2e/us-09-bulk-editor.spec.ts`
+2. Runtime: `pnpm test:unit tests/unit/draft-rules.test.ts tests/unit/draft-grid-window.test.ts`, `pnpm test:int tests/integration/project-cache.test.ts tests/integration/tests-query-api.test.ts`
+3. End-to-end regression: `pnpm test:e2e e2e/us-08-repository-browser.spec.ts` (existing repository spec; no separate US-09 spec)
 
 ## Story-specific done checks
 
-- [ ] Assertion in e2e: mock services received zero write requests during editing
+- [ ] Integration assertion: mock services received zero write requests during draft editing operations

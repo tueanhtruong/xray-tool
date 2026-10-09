@@ -123,11 +123,22 @@ describe('cached test query API', () => {
     })
 
     expect(first.status).toBe(200)
+    const hydration = await first.json() as { values: Array<{ id: string; testType: string; readOnly: boolean; fields: { summary: string; labels: string[]; status: string }; base: { summary: string } }>; failures: unknown[] }
+    expect(hydration).toMatchObject({
+      values: [{ id: 'selection-new', testType: 'Cucumber', readOnly: false, fields: { summary: 'Repository test 1', labels: ['need-review', 'ui'], status: 'Ready' }, base: { summary: 'Repository test 1' } }],
+      failures: [],
+    })
     const counts = await (await fetch(new URL('/__control', mockUrl))).json() as { xrayDetailQueryCount: number }
     expect(counts.xrayDetailQueryCount).toBe(1)
     expect(await queryRows<{ summary: string; fingerprint: string }>(`SELECT summary, fingerprint FROM "TestCaseSnapshot" WHERE "testCaseId"='selection-new'`)).toMatchObject([
       { summary: 'Repository test 1', fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/) },
     ])
+    const indexAfterHydration = await (await fetch(`${server.url}/api/tests?project=${projectId}&q=ONEDS-14043`, { headers: { cookie } })).json() as { values: Array<{ summary: string; labels?: string; status?: string }> }
+    expect(indexAfterHydration.values[0]).toMatchObject({ summary: 'Repository test 1' })
+    expect(indexAfterHydration.values[0]).not.toHaveProperty('labels')
+    expect(indexAfterHydration.values[0]).not.toHaveProperty('status')
+    const noWrites = await (await fetch(new URL('/__control', mockUrl))).json() as { writeRequestCount: number }
+    expect(noWrites.writeRequestCount).toBe(0)
 
     await queryRows(`INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ('selection-draft', (SELECT "ownerId" FROM "Workspace" WHERE id=$1), 'selection-new', 'Local draft', now())`, [workspaceId])
     const original = await queryRows<{ summary: string; fingerprint: string }>(`SELECT summary, fingerprint FROM "TestCaseSnapshot" WHERE "testCaseId"='selection-new'`)

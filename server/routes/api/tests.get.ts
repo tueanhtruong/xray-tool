@@ -1,6 +1,7 @@
 import { getQuery } from 'h3'
 import { z } from 'zod'
 import { getAppSession } from '../../utils/session'
+import { requireAuthorizedProject } from '../../services/project-selection'
 
 const querySchema = z.object({
   q: z.string().trim().max(200).optional().default(''),
@@ -23,11 +24,7 @@ export default defineEventHandler(async (event) => {
   const params = parsed.data
   const projectId = getQuery(event).project
   if (typeof projectId !== 'string') throw httpError(409, 'Choose a project before opening the test repository.')
-  const access = await usePrisma().workspaceProject.findFirst({
-    where: { workspaceId: workspace.id, projectId },
-    select: { id: true },
-  })
-  if (!access) throw httpError(404, 'Project not found or access is not authorized.')
+  const project = await requireAuthorizedProject(workspace.id, projectId)
   const where: Record<string, unknown> = {
     projectId,
     origin: 'REMOTE',
@@ -50,7 +47,7 @@ export default defineEventHandler(async (event) => {
   }
   if (and.length > 0) where.AND = and
   const prisma = usePrisma()
-  const [total, tests] = await prisma.$transaction([
+  const [total, tests, drafts, draftCount] = await prisma.$transaction([
     prisma.testCase.count({ where: where as never }),
     prisma.testCase.findMany({
       where: where as never,
@@ -58,19 +55,31 @@ export default defineEventHandler(async (event) => {
       skip: params.offset,
       take: params.limit,
     }),
+    prisma.testCaseDraft.findMany({
+      where: { userId: session.userId, testCase: { projectId } },
+      select: { testCaseId: true, summary: true, baseAvailable: true },
+    }),
+    prisma.testCaseDraft.count({ where: { userId: session.userId, testCase: { projectId } } }),
   ])
+  const draftsByTest = new Map(drafts.map((draft) => [draft.testCaseId, draft]))
   return {
-    values: tests.map((testCase) => ({
-      id: testCase.id,
-      issueId: testCase.issueId,
-      key: testCase.key,
-      summary: testCase.summary ?? '',
-      folderPath: testCase.folderPath,
-      remoteDeletedAt: testCase.remoteDeletedAt,
-    })),
+    values: tests.map((testCase) => {
+      const draft = draftsByTest.get(testCase.id)
+      return {
+        id: testCase.id,
+        issueId: testCase.issueId,
+        key: testCase.key,
+        summary: draft?.baseAvailable && draft.summary !== null ? draft.summary : testCase.summary ?? '',
+        folderPath: testCase.folderPath,
+        remoteDeletedAt: testCase.remoteDeletedAt,
+        hasDraft: Boolean(draft?.baseAvailable),
+      }
+    }),
     total,
     limit: params.limit,
     offset: params.offset,
     nextOffset: params.offset + tests.length < total ? params.offset + tests.length : null,
+    project: { id: project.id, key: project.jiraProjectKey, name: project.jiraProjectName, statuses: project.projectStatuses },
+    draftCount,
   }
 })

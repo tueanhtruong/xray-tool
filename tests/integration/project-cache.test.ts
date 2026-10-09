@@ -56,6 +56,7 @@ describe('tenant-scoped shared project cache', () => {
 
   beforeAll(async () => {
     mock = await startMockServices(mockUrl)
+    await queryRows(`DELETE FROM "Project" WHERE id IN ('tenant-collision-project','tab-project-b')`)
     await queryRows(`DELETE FROM "Workspace" WHERE id='cache-second-workspace'`)
     await queryRows(
       `DELETE FROM "WorkspaceProject" WHERE "workspaceId" IN (SELECT id FROM "Workspace" WHERE "ownerId" IN (SELECT id FROM "User" WHERE "accountId" IN ('fake-atlassian-account','fake-api-token-account')))`,
@@ -63,6 +64,8 @@ describe('tenant-scoped shared project cache', () => {
     await queryRows(
       `DELETE FROM "Project" WHERE id IN ('tenant-collision-project','tab-project-b')`,
     )
+    await queryRows(`DELETE FROM "TestCaseDraft" WHERE id LIKE 'draft-other-user-%' OR id='draft-other-user'`)
+    await queryRows(`DELETE FROM "User" WHERE id LIKE 'draft-isolation-%'`)
     await queryRows(`DELETE FROM "TestCase" WHERE id IN ('tab-test-b','private-cache-draft')`)
     await fetch(new URL('/__control', mockUrl), {
       method: 'POST',
@@ -308,5 +311,139 @@ describe('tenant-scoped shared project cache', () => {
       `DELETE FROM "TestCaseDraft" WHERE id IN ('owner-only-draft','other-user-draft')`,
     )
     await queryRows(`DELETE FROM "User" WHERE id=$1`, [otherUser])
+  })
+
+  it('saves validated private drafts with immutable bases and removes no-op edits', async () => {
+    const userId = (await queryRows<{ ownerId: string }>(`SELECT "ownerId" FROM "Workspace" WHERE id=$1`, [workspaceId]))[0]!.ownerId
+    const testCase = (await queryRows<{ id: string }>(
+      `SELECT id FROM "TestCase" WHERE "projectId"=$1 AND origin='REMOTE' ORDER BY key LIMIT 1`,
+      [projectId],
+    ))[0]!
+    await queryRows(`DELETE FROM "TestCaseDraft" WHERE "testCaseId"=$1`, [testCase.id])
+    await queryRows(
+      `INSERT INTO "TestCaseSnapshot" (id,"testCaseId",summary,labels,status,fingerprint) VALUES ('draft-rule-snapshot',$1,'Base summary',ARRAY['api'],'To Do','draft-base-fingerprint') ON CONFLICT ("testCaseId") DO UPDATE SET summary='Base summary',labels=ARRAY['api'],status='To Do',fingerprint='draft-base-fingerprint'`,
+      [testCase.id],
+    )
+    await queryRows(`UPDATE "TestCase" SET "testType"='Cucumber' WHERE id=$1`, [testCase.id])
+
+    const save = (body: unknown) => fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, {
+      method: 'PUT', headers: { cookie, origin: server.url, 'content-type': 'application/json' }, body: JSON.stringify(body),
+    })
+    const invalid = await save({ labels: ['needs review'] })
+    expect(invalid.status).toBe(400)
+    const created = await save({ summary: 'Draft summary' })
+    expect(created.status).toBe(200)
+    expect(await created.json()).toMatchObject({
+      base: { summary: 'Base summary', labels: ['api'], status: 'To Do' },
+      fields: { summary: 'Draft summary', labels: ['api'], status: 'To Do' },
+      changed: true,
+      count: 1,
+    })
+    expect((await save({ status: 'Ready' })).status).toBe(200)
+    expect(await queryRows<{ baseFingerprint: string }>(`SELECT "baseFingerprint" FROM "TestCaseDraft" WHERE "userId"=$1 AND "testCaseId"=$2`, [userId, testCase.id]))
+      .toEqual([{ baseFingerprint: 'draft-base-fingerprint' }])
+    const read = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, { headers: { cookie } })
+    expect(read.status).toBe(200)
+    expect(await read.json()).toMatchObject({ fields: { summary: 'Draft summary', status: 'Ready' }, count: 1 })
+
+    const reset = await save({ summary: 'Base summary', status: 'To Do' })
+    expect(reset.status).toBe(200)
+    expect(await reset.json()).toMatchObject({ changed: false, count: 0 })
+    expect(await queryRows(`SELECT id FROM "TestCaseDraft" WHERE "userId"=$1 AND "testCaseId"=$2`, [userId, testCase.id])).toEqual([])
+
+    const otherUser = `draft-isolation-${Date.now()}`
+    const otherDraftId = `draft-other-user-${Date.now()}`
+    await queryRows(`INSERT INTO "User" (id,"accountId","createdAt","updatedAt") VALUES ($1,$2,now(),now())`, [otherUser, `${otherUser}@account`])
+    await queryRows(
+      `INSERT INTO "TestCaseDraft" (id,"userId","testCaseId",summary,"baseSummary","baseLabels","baseStatus","baseFingerprint","updatedAt") VALUES ($3,$1,$2,'Other edit','Other base',ARRAY['remote'],'To Do','other-fingerprint',now())`,
+      [otherUser, testCase.id, otherDraftId],
+    )
+    const isolated = await save({ summary: 'Mine again' })
+    expect(isolated.status).toBe(200)
+    expect(await queryRows<{ summary: string; baseSummary: string }>(`SELECT summary,"baseSummary" FROM "TestCaseDraft" WHERE id=$1`, [otherDraftId]))
+      .toEqual([{ summary: 'Other edit', baseSummary: 'Other base' }])
+    await queryRows(`DELETE FROM "TestCaseDraft" WHERE id=$1`, [otherDraftId])
+    await queryRows(`DELETE FROM "User" WHERE id=$1`, [otherUser])
+    await queryRows(`DELETE FROM "TestCaseDraft" WHERE "userId"=$1 AND "testCaseId"=$2`, [userId, testCase.id])
+
+    const otherProject = await fetch(`${server.url}/api/drafts/${testCase.id}?project=not-authorized`, { headers: { cookie } })
+    expect(otherProject.status).toBe(404)
+
+    const missingOrigin = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, {
+      method: 'PUT', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ summary: 'No origin' }),
+    })
+    expect(missingOrigin.status).toBe(403)
+  })
+
+  it('prepares detail-page draft fields and supports private undo without remote writes', async () => {
+    const userId = (await queryRows<{ ownerId: string }>(`SELECT "ownerId" FROM "Workspace" WHERE id=$1`, [workspaceId]))[0]!.ownerId
+    const testCase = (await queryRows<{ id: string; key: string }>(
+      `SELECT id,key FROM "TestCase" WHERE "projectId"=$1 AND origin='REMOTE' ORDER BY key LIMIT 1`,
+      [projectId],
+    ))[0]!
+    await queryRows(
+      `INSERT INTO "TestCaseSnapshot" (id,"testCaseId",summary,labels,status,gherkin,fingerprint) VALUES ('detail-draft-snapshot',$1,'Base detail',ARRAY['api'],'To Do','Scenario: base','detail-fingerprint') ON CONFLICT ("testCaseId") DO UPDATE SET summary='Base detail',labels=ARRAY['api'],status='To Do',gherkin='Scenario: base',fingerprint='detail-fingerprint'`,
+      [testCase.id],
+    )
+    await queryRows(`UPDATE "TestCase" SET "testType"='Cucumber' WHERE id=$1`, [testCase.id])
+    await fetch(new URL('/__control', mockUrl), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ xrayTestRevision: 0, resetWriteRequestCount: true }),
+    })
+
+    const detail = await fetch(`${server.url}/api/tests/by-key/${testCase.key}?project=${projectId}`, { headers: { cookie } })
+    expect(detail.status).toBe(200)
+    expect(await detail.json()).toMatchObject({ id: testCase.id, key: testCase.key, readOnly: false })
+
+    const prepare = await fetch(`${server.url}/api/tests/selection?project=${projectId}`, {
+      method: 'POST', headers: { cookie, origin: server.url, 'content-type': 'application/json' }, body: JSON.stringify({ ids: [testCase.id] }),
+    })
+    expect(prepare.status).toBe(200)
+    expect(await prepare.json()).toMatchObject({ values: [{ id: testCase.id, fields: { summary: 'Repository test 1' } }] })
+
+    const invalidDetailDraft = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, {
+      method: 'PUT', headers: { cookie, origin: server.url, 'content-type': 'application/json' }, body: JSON.stringify({ labels: ['needs review'] }),
+    })
+    expect(invalidDetailDraft.status).toBe(400)
+
+    const save = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, {
+      method: 'PUT', headers: { cookie, origin: server.url, 'content-type': 'application/json' }, body: JSON.stringify({ summary: 'Detail edit' }),
+    })
+    expect(save.status).toBe(200)
+    expect(await save.json()).toMatchObject({ fields: { summary: 'Detail edit' }, count: 1 })
+    const readBack = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, { headers: { cookie } })
+    expect(await readBack.json()).toMatchObject({ base: { summary: 'Repository test 1' }, fields: { summary: 'Detail edit' } })
+    const projectDrafts = await fetch(`${server.url}/api/projects/${projectId}/drafts`, { headers: { cookie } })
+    expect(await projectDrafts.json()).toMatchObject({ count: 1, values: [{ id: testCase.id, localFields: { summary: 'Detail edit' } }] })
+
+    const undo = await fetch(`${server.url}/api/drafts/${testCase.id}?project=${projectId}`, {
+      method: 'DELETE', headers: { cookie, origin: server.url },
+    })
+    expect(undo.status).toBe(200)
+    expect(await undo.json()).toMatchObject({ count: 0 })
+    expect(await queryRows(`SELECT id FROM "TestCaseDraft" WHERE "userId"=$1 AND "testCaseId"=$2`, [userId, testCase.id])).toEqual([])
+
+    const wrongProject = await fetch(`${server.url}/api/drafts/${testCase.id}?project=not-authorized`, { headers: { cookie } })
+    expect(wrongProject.status).toBe(404)
+    const mockState = await (await fetch(new URL('/__control', mockUrl))).json() as { writeRequestCount: number }
+    expect(mockState.writeRequestCount).toBe(0)
+  })
+
+  it('hydrates only authorized selected ids, reports unavailable rows, and never writes remotely', async () => {
+    const unknownId = 'hydration-not-in-project'
+    const response = await fetch(`${server.url}/api/tests/selection?project=${projectId}`, {
+      method: 'POST', headers: { cookie, origin: server.url, 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [unknownId] }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ values: [], failures: [{ id: unknownId }] })
+
+    const unauthorized = await fetch(`${server.url}/api/tests/selection?project=not-authorized`, {
+      method: 'POST', headers: { cookie, origin: server.url, 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [unknownId] }),
+    })
+    expect(unauthorized.status).toBe(404)
+    const mockState = await (await fetch(new URL('/__control', mockUrl))).json() as { writeRequestCount: number }
+    expect(mockState.writeRequestCount).toBe(0)
   })
 })
