@@ -420,7 +420,7 @@
         "pnpm test:int tests/integration/project-cache.test.ts",
         "pnpm test:e2e e2e/us-08-repository-browser.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {
