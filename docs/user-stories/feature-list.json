@@ -424,10 +424,25 @@
       "evidence": null
     },
     {
+      "id": "US-09.1",
+      "title": "Bulk editor rework: slim grid, folder truncation, split Edit & Compare screen",
+      "file": "US-09.1-bulk-editor-rework.md",
+      "dependsOn": ["US-09"],
+      "behavior": "Grid drops two unneeded columns end to end (UI, API, DB); Folder is width-limited with trimmed value and tooltip; selected tests open in a split Xray-vs-draft editor with live diff, per-hunk revert and autosaved drafts; no remote writes.",
+      "verification": [
+        "pnpm check",
+        "pnpm test:unit tests/unit/draft-rules.test.ts tests/unit/fingerprint.test.ts tests/unit/folder-trim.test.ts tests/unit/line-diff.test.ts",
+        "pnpm test:int tests/integration/drafts-api.test.ts tests/integration/drafts-migration.test.ts",
+        "pnpm test:e2e e2e/us-09-1-edit-compare.spec.ts"
+      ],
+      "state": "not_started",
+      "evidence": null
+    },
+    {
       "id": "US-10",
       "title": "Bulk actions across a selection",
       "file": "US-10-bulk-actions.md",
-      "dependsOn": ["US-09"],
+      "dependsOn": ["US-09", "US-09.1"],
       "behavior": "Add/remove/rename labels, set status, find & replace (ReDoS-safe) across a selection with preview, single-step undo, drafts only.",
       "verification": [
         "pnpm check",
@@ -452,7 +467,7 @@
       "id": "US-12",
       "title": "Gherkin steps editor",
       "file": "US-12-gherkin-steps-editor.md",
-      "dependsOn": ["US-09", "US-11"],
+      "dependsOn": ["US-09", "US-09.1", "US-11"],
       "behavior": "Code editor with Gherkin highlighting, completion, live parser validation, compare-with-Xray, saves Gherkin draft.",
       "verification": [
         "pnpm check",
@@ -466,7 +481,7 @@
       "id": "US-13",
       "title": "Import test cases from Markdown",
       "file": "US-13-markdown-import.md",
-      "dependsOn": ["US-09", "US-11"],
+      "dependsOn": ["US-09", "US-09.1", "US-11"],
       "behavior": "Upload .md, preview Update/Unchanged/Create/Error per scenario, confirm into drafts and new local tests; never writes to Xray.",
       "verification": [
         "pnpm check",
@@ -481,7 +496,7 @@
       "id": "US-14",
       "title": "Export test cases to Markdown",
       "file": "US-14-markdown-export.md",
-      "dependsOn": ["US-09", "US-11"],
+      "dependsOn": ["US-09", "US-09.1", "US-11"],
       "behavior": "Export selection/folder/drafted tests as Local or Xray version to canonical .md grouped by folder; export then import is a no-op.",
       "verification": [
         "pnpm check",
