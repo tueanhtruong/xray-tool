@@ -5,7 +5,13 @@ import { describe, expect, it } from 'vitest'
 
 describe('Gherkin merge view', () => {
   it('keeps independent edits as separate aligned chunks', () => {
-    const base = Text.of(['Feature: example', '  Scenario: first', '    Given original', '  Scenario: second', '    Then finish'])
+    const base = Text.of([
+      'Feature: example',
+      '  Scenario: first',
+      '    Given original',
+      '  Scenario: second',
+      '    Then finish',
+    ])
     const draft = Text.of([
       'Feature: example',
       '  Scenario: first',

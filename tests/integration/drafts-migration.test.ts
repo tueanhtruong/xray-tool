@@ -86,15 +86,21 @@ describe('US-09.1 draft-field migration', () => {
     const notices: string[] = []
     client.on('notice', (notice) => notices.push(notice.message))
     const migration = await readFile(
-      resolve(process.cwd(), 'prisma/migrations/20261010100000_remove_labels_and_status/migration.sql'),
+      resolve(
+        process.cwd(),
+        'prisma/migrations/20261010100000_remove_labels_and_status/migration.sql',
+      ),
       'utf8',
     )
     await client.query(migration)
 
-    const remainingDrafts = await client.query<{ id: string; summary: string | null; gherkin: string | null }>(
-      `SELECT id,summary,gherkin FROM "TestCaseDraft" WHERE id LIKE $1 ORDER BY id`,
-      [`${suffix}-%-draft`],
-    )
+    const remainingDrafts = await client.query<{
+      id: string
+      summary: string | null
+      gherkin: string | null
+    }>(`SELECT id,summary,gherkin FROM "TestCaseDraft" WHERE id LIKE $1 ORDER BY id`, [
+      `${suffix}-%-draft`,
+    ])
     expect(remainingDrafts.rows).toEqual([
       {
         id: `${suffix}-mixed-draft`,
