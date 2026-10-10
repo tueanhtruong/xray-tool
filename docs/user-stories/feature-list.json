@@ -457,8 +457,30 @@
         "pnpm test:int tests/integration/project-cache.test.ts tests/integration/drafts-migration.test.ts",
         "pnpm test:e2e e2e/us-09-1-edit-compare.spec.ts"
       ],
-      "state": "active",
-      "evidence": null
+      "state": "passing",
+      "evidence": {
+        "commit": "58f4fce06ee067ce730dea2bcaa2aca2617cda51",
+        "verifiedAt": "2026-10-10T16:55:21.628Z",
+        "integrationTarget": "mock",
+        "commands": [
+          {
+            "cmd": "pnpm check",
+            "durationMs": 20470
+          },
+          {
+            "cmd": "pnpm test:unit tests/unit/draft-rules.test.ts tests/unit/fingerprint.test.ts tests/unit/folder-trim.test.ts tests/unit/line-diff.test.ts",
+            "durationMs": 840
+          },
+          {
+            "cmd": "pnpm test:int tests/integration/project-cache.test.ts tests/integration/drafts-migration.test.ts",
+            "durationMs": 3783
+          },
+          {
+            "cmd": "pnpm test:e2e e2e/us-09-1-edit-compare.spec.ts",
+            "durationMs": 19386
+          }
+        ]
+      }
     },
     {
       "id": "US-10",

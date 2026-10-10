@@ -2,21 +2,22 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
-## 2026-10-10 — US-09.1 archived; verification pending
+## 2026-10-10 — US-09.1 verified and passing
 
 **Done**
 
-- `pnpm check` passed under Node 24.
+- Committed the US-09.1 implementation and archive as `a253240`, then added focused diff/migration tests and corrected the integration verification path in `58f4fce`.
+- `pnpm verify US-09.1` passed on the mock target: `pnpm check`, 12 focused unit tests, 7 integration tests, and 7 E2E tests. US-09.1 is `passing` at commit `58f4fce`.
 - Synced the US-09.1 delta specs into the main specs and `openspec validate --specs` passed (20 specs).
-- Archived `us-09-1-bulk-editor-rework` at `openspec/changes/archive/2026-10-10-us-09-1-bulk-editor-rework` after confirming the 16 unchecked-task warning.
+- Archived `us-09-1-bulk-editor-rework` at `openspec/changes/archive/2026-10-10-us-09-1-bulk-editor-rework` after confirming the 16 unchecked-task warning; those archived task checkboxes were not altered.
 
 **In progress**
 
-- US-09.1 remains `active`. `pnpm verify US-09.1` stopped at its clean-working-tree precondition; no verification commands ran and no passing evidence was recorded.
+- None. No story is `active`.
 
 **Next**
 
-- Finish the remaining US-09.1 tasks, commit the implementation, then rerun `pnpm verify US-09.1` on a clean tree.
+- US-10 is now the next eligible story; activate it when beginning work.
 
 **Open questions**
 
