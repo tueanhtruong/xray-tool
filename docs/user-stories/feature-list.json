@@ -454,7 +454,7 @@
       "verification": [
         "pnpm check",
         "pnpm test:unit tests/unit/draft-rules.test.ts tests/unit/fingerprint.test.ts tests/unit/folder-trim.test.ts tests/unit/line-diff.test.ts",
-        "pnpm test:int tests/integration/drafts-api.test.ts tests/integration/drafts-migration.test.ts",
+        "pnpm test:int tests/integration/project-cache.test.ts tests/integration/drafts-migration.test.ts",
         "pnpm test:e2e e2e/us-09-1-edit-compare.spec.ts"
       ],
       "state": "active",
