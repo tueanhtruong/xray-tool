@@ -9,8 +9,6 @@ export function asRecord(value: unknown): Record<string, unknown> {
 
 export interface NormalizedRemoteTest {
   summary: string
-  labels: string[]
-  status: string
   /** Xray test type name; undefined when Xray did not return one. */
   testType: string | undefined
   gherkin: string | null
@@ -20,13 +18,8 @@ export interface NormalizedRemoteTest {
 /** Maps an Xray detail result to the plain fields the app works with. */
 export function normalizeRemoteTest(remote: XrayTestDetails): NormalizedRemoteTest {
   const jira = asRecord(remote.jira)
-  const status = asRecord(jira.status)
   return {
     summary: typeof jira.summary === 'string' ? jira.summary : '',
-    labels: Array.isArray(jira.labels)
-      ? jira.labels.filter((label): label is string => typeof label === 'string')
-      : [],
-    status: typeof status.name === 'string' ? status.name : '',
     testType: remote.testType?.name,
     gherkin: remote.gherkin,
     jira,
@@ -57,7 +50,11 @@ export async function requireReadyWorkspace(
   })
   if (!workspace) throw httpError(404, 'Workspace not found.')
   if (!projectId) {
-    const projects = await usePrisma().workspaceProject.findMany({ where: { workspaceId: workspace.id }, select: { projectId: true }, take: 2 })
+    const projects = await usePrisma().workspaceProject.findMany({
+      where: { workspaceId: workspace.id },
+      select: { projectId: true },
+      take: 2,
+    })
     if (projects.length === 1) projectId = projects[0]!.projectId
     else if (projects.length > 1) throw httpError(409, notReadyMessage)
     else throw httpError(404, 'Test not found.')
@@ -67,7 +64,11 @@ export async function requireReadyWorkspace(
     include: { project: { select: { id: true, jiraProjectId: true } } },
   })
   if (!access) throw httpError(404, 'Project not found or access is not authorized.')
-  return { id: workspace.id, projectId: access.project.id, jiraProjectId: access.project.jiraProjectId }
+  return {
+    id: workspace.id,
+    projectId: access.project.id,
+    jiraProjectId: access.project.jiraProjectId,
+  }
 }
 
 export const NOT_READY_REPOSITORY_MESSAGE =
@@ -83,34 +84,35 @@ export interface IndexedTest {
 }
 
 /** Fetches current Xray details for an indexed test and maps them. Persists nothing. */
-export async function fetchFreshTestDetails(workspaceId: string, testCase: IndexedTest, projectId: string) {
+export async function fetchFreshTestDetails(
+  workspaceId: string,
+  testCase: IndexedTest,
+  projectId: string,
+) {
   if (!testCase.issueId) throw httpError(404, 'Test not found.')
   const remote = await getXrayTestDetailsByKey(workspaceId, testCase.key, projectId)
   if (remote.issueId !== testCase.issueId) {
     throw httpError(404, 'The indexed test no longer matches the requested Xray issue.')
   }
   const normalized = normalizeRemoteTest(remote)
-  const userId = (await usePrisma().workspace.findFirst({ where: { id: workspaceId }, select: { ownerId: true } }))?.ownerId
+  const userId = (
+    await usePrisma().workspace.findFirst({ where: { id: workspaceId }, select: { ownerId: true } })
+  )?.ownerId
   const draft = userId
-    ? await usePrisma().testCaseDraft.findUnique({ where: { userId_testCaseId: { userId, testCaseId: testCase.id } } })
-    : null
-  const base = draft
-    ? { summary: draft.baseSummary ?? '', labels: draft.baseLabels, status: draft.baseStatus ?? '' }
-    : null
-  const fields = draft?.baseAvailable && base
-    ? composeDraftFields(base, {
-        summary: draft.summary,
-        labels: Array.isArray(draft.labels) && draft.labels.every((label) => typeof label === 'string') ? draft.labels as string[] : null,
-        status: draft.status,
+    ? await usePrisma().testCaseDraft.findUnique({
+        where: { userId_testCaseId: { userId, testCaseId: testCase.id } },
       })
-    : { summary: normalized.summary, labels: normalized.labels, status: normalized.status }
+    : null
+  const base = draft ? { summary: draft.baseSummary ?? '', gherkin: draft.baseGherkin } : null
+  const fields =
+    draft?.baseAvailable && base
+      ? composeDraftFields(base, { summary: draft.summary, gherkin: draft.gherkin })
+      : { summary: normalized.summary, gherkin: normalized.gherkin }
   return {
     ...testCase,
     summary: fields.summary,
-    labels: fields.labels,
-    status: fields.status,
     testType: normalized.testType ?? 'Unknown',
-    gherkin: normalized.gherkin,
+    gherkin: fields.gherkin,
     readOnly: isReadOnlyTestType(normalized.testType),
     base,
     fields,

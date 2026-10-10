@@ -116,7 +116,7 @@ The system SHALL expose authenticated APIs for cached folders and the lightweigh
 - **THEN** the API returns no data from any other project
 
 ### Requirement: Browse the lightweight Test Repository index
-The system SHALL provide a `/repository` page for an explicitly identified, authorized tenant/project context. The page SHALL retain the current folder-tree and lightweight-list behavior: a 260 px default adjustable folder sidebar (150–500 px) on viewports at least 800 px wide, stacked layout below 800 px, navigable folder hierarchy with direct and inclusive descendant counts, an "All tests" root, visible expand/collapse chevrons, keyboard operation, safe test links, key/name search, optional descendant inclusion, bounded pagination, and folder/search state in the URL. Inclusive counts SHALL be computed independently of expansion state. The resize separator SHALL be pointer- and keyboard-operable and expose orientation/current/minimum/maximum values to assistive technology. The test list SHALL show only a selection checkbox, key, name/summary, and folder location before details are requested; its header checkbox SHALL select all visible rows, and the list SHALL scroll horizontally inside its own container on narrow screens. Test links SHALL include the authorized project context in the URL. Expanded-folder preference SHALL be scoped to the project context. The page SHALL show that project's last successful refresh time and project-scoped pull progress, loading/error/empty states, and a full-project refresh action with a confirmation naming the project and warning that it may take time. The test list SHALL remain lightweight and SHALL NOT show row-level labels, status, or draft fields before US-09. The application header SHALL provide a keyboard-accessible searchable project combobox using the existing paginated Jira project search integration, with loading, empty, error, pagination, current, and selection states. Selecting a project SHALL change only the current view's project context and preserve folder/search navigation where valid. The header SHALL provide a **Refresh folders** action that refreshes only the selected project's folder tree and project-scoped folder timestamp. A selected folder MAY expose **Refresh this folder** only when the Xray contract supports safe subtree enumeration and moved/deleted-test reconciliation; otherwise the UI SHALL NOT claim to refresh only a folder and SHALL offer the full-project refresh with accurate wording. Project-switch draft choices SHALL be isolated to the current user: when that user has drafts in the current project, the switch flow SHALL offer **Review drafts**, **Switch and keep drafts**, and **Cancel**. Review drafts SHALL navigate to that user's draft list for the current project without changing project context or syncing; switching SHALL retain drafts and bases; canceling SHALL leave context unchanged. Legacy `/repository` and `/tests/:key` URLs without explicit project context SHALL lead to an explicit authorized-project choice and SHALL NOT infer or silently select a last-used project.
+The system SHALL provide a `/repository` page for an explicitly identified, authorized tenant/project context. The page SHALL retain the current folder-tree and list behavior: a 260 px default adjustable folder sidebar (150–500 px) on viewports at least 800 px wide, stacked layout below 800 px, navigable folder hierarchy with direct and inclusive descendant counts, an "All tests" root, visible expand/collapse chevrons, keyboard operation, safe test links, key/name search, optional descendant inclusion, bounded pagination, and folder/search state in the URL. Inclusive counts SHALL be computed independently of expansion state. The resize separator SHALL be pointer- and keyboard-operable and expose orientation/current/minimum/maximum values to assistive technology. The test list SHALL show exactly these columns in this order: selection checkbox, key, summary, folder, Gherkin preview, and draft indicator. The list SHALL NOT show labels, status, or test type. The folder column SHALL have a fixed, limited width and SHALL NOT wrap. The header checkbox SHALL select all tests matching the active search and folder filter, not only rendered rows, and SHALL show the number selected. Test links SHALL include the authorized project context in the URL. Expanded-folder preference SHALL be scoped to the project context. The page SHALL show that project's last successful refresh time and project-scoped pull progress, loading/error/empty states, and a full-project refresh action with a confirmation naming the project and warning that it may take time. The application header SHALL provide a keyboard-accessible searchable project combobox using the existing paginated Jira project search integration, with loading, empty, error, pagination, current, and selection states. Selecting a project SHALL change only the current view's project context and preserve folder/search navigation where valid. The header SHALL provide a **Refresh folders** action that refreshes only the selected project's folder tree and project-scoped folder timestamp. A selected folder MAY expose **Refresh this folder** only when the Xray contract supports safe subtree enumeration and moved/deleted-test reconciliation; otherwise the UI SHALL NOT claim to refresh only a folder and SHALL offer the full-project refresh with accurate wording. Project-switch draft choices SHALL be isolated to the current user: when that user has drafts in the current project, the switch flow SHALL offer **Review drafts**, **Switch and keep drafts**, and **Cancel**. Review drafts SHALL navigate to that user's draft list for the current project without changing project context or syncing; switching SHALL retain drafts and bases; canceling SHALL leave context unchanged. Legacy `/repository` and `/tests/:key` URLs without explicit project context SHALL lead to an explicit authorized-project choice and SHALL NOT infer or silently select a last-used project.
 
 #### Scenario: Browse a folder and its descendants
 - **WHEN** an authorized user selects a folder and then enables inclusion of subfolders
@@ -127,9 +127,18 @@ The system SHALL provide a `/repository` page for an explicitly identified, auth
 - **THEN** the list shows only matching tests
 
 #### Scenario: Show only lightweight fields in the list
-- **WHEN** a user browses indexed tests before requesting their details
-- **THEN** the list shows a selection checkbox, key, name/summary, and folder location only
-- **AND** labels, status, test type, and draft indicators are omitted
+- **WHEN** a user views the repository list
+- **THEN** the columns are selection, key, summary, folder, Gherkin preview, and draft indicator
+- **AND** labels, status, and test type appear in no column
+
+#### Scenario: Trim a long folder path and keep its leaf
+- **WHEN** a folder path is longer than its column
+- **THEN** the cell shows the path start-trimmed with an ellipsis and keeps the leaf segment visible
+- **AND** the full path is available in a tooltip linked with `aria-describedby` on hover or keyboard focus
+
+#### Scenario: Short folder path has no tooltip
+- **WHEN** a folder path fits its column
+- **THEN** no tooltip is shown
 
 #### Scenario: Restore project and repository deep links
 - **WHEN** an authorized user reloads or navigates back to a URL containing a project, folder, and search query
@@ -148,8 +157,9 @@ The system SHALL provide a `/repository` page for an explicitly identified, auth
 - **THEN** focus movement, expansion, and folder selection remain keyboard-operable
 
 #### Scenario: Select all visible rows
-- **WHEN** the owner ticks the list's header checkbox
-- **THEN** every visible row is selected and the page shows the number selected
+- **WHEN** the owner ticks the list's header checkbox while a search or folder filter matches more tests than are rendered
+- **THEN** every matching test is selected, not only the rendered rows
+- **AND** the page shows "N selected"
 
 #### Scenario: Keep folder expansion state project-scoped
 - **WHEN** a user expands folders in project A, switches to project B, then returns to A
@@ -236,7 +246,7 @@ The system SHALL provide a `/repository` page for an explicitly identified, auth
 - **THEN** subsequent repository, detail, and pull requests in each tab remain scoped to their URL project
 
 ### Requirement: Fetch fresh safe test details and prepare editor selections
-When an authorized user opens a test, the system SHALL resolve it only from the explicitly identified project associated with the requesting workspace, fetch current full test details from Xray on every open, and SHALL NOT persist the detail response as a side effect of viewing. Details SHALL include summary, labels, status, type, and Gherkin when applicable; non-Cucumber tests SHALL be identified as read-only. When a user selects a test for editor work, the system SHALL compare the fetched result with the shared current snapshot before updating it. If no snapshot exists, the system SHALL create one from the fetched remote state. If the fetched remote state is unchanged, the system SHALL leave the snapshot unchanged. If the remote state changed and the requesting user has no draft, the system SHALL update the shared snapshot to the fetched remote state. If the requesting user has a draft, the system SHALL preserve that user's immutable base and draft for conflict handling; updates to a shared current snapshot SHALL NOT change that base. Jira-provided text SHALL be rendered as text, not executable markup. An Open in Jira link SHALL use the requesting workspace's stored site URL and a stored test key, with `target="_blank"` and `rel="noopener noreferrer"`.
+When an authorized user opens a test, the system SHALL resolve it only from the explicitly identified project associated with the requesting workspace, fetch current full test details from Xray on every open, and SHALL NOT persist the detail response as a side effect of viewing. Details SHALL include summary, type, and Gherkin when applicable; labels and status are not part of test details. Non-Cucumber tests SHALL be identified as read-only. When a user selects a test for editor work, the system SHALL compare the fetched result with the shared current snapshot before updating it. If no snapshot exists, the system SHALL create one from the fetched remote state. If the fetched remote state is unchanged, the system SHALL leave the snapshot unchanged. If the remote state changed and the requesting user has no draft, the system SHALL update the shared snapshot to the fetched remote state. If the requesting user has a draft, the system SHALL preserve that user's immutable base and draft for conflict handling; updates to a shared current snapshot SHALL NOT change that base. Jira-provided text SHALL be rendered as text, not executable markup. An Open in Jira link SHALL use the requesting workspace's stored site URL and a stored test key, with `target="_blank"` and `rel="noopener noreferrer"`.
 
 #### Scenario: Fetch current details only within the authorized project
 - **WHEN** an authorized user opens a cached test with a project context
@@ -294,7 +304,8 @@ The system SHALL provide an authenticated API that returns fresh Xray details fo
 
 #### Scenario: Known key in an authorized project
 - **WHEN** an authorized user requests a key present in the specified project's cache
-- **THEN** the response contains the fresh summary, labels, status, type, and Gherkin
+- **THEN** the response contains the fresh summary, type, and Gherkin
+- **AND** labels and status are not returned
 - **AND** nothing is persisted
 
 #### Scenario: Unknown key or unauthorized project
@@ -400,7 +411,7 @@ The system SHALL enable folder-only refresh only after the Xray contract has bee
 - **THEN** the interface does not claim folder-only refresh and offers the full-project refresh path
 
 ### Requirement: Edit repository tests as private local drafts
-The system SHALL let an authorized user edit the summary, labels, and status of editable Cucumber tests in the explicitly identified project's repository. The grid SHALL present effective values from that user's draft when present and otherwise from the user's immutable draft base/current prepared snapshot. Labels and status SHALL be populated from full test details rather than inferred from the lightweight index. Manual, Generic, unknown, or not-yet-hydrated tests SHALL NOT be editable. Edits SHALL be private to the user and SHALL NOT send mutation requests to Jira or Xray. A draft field SHALL represent only a change from that user's immutable base; when all draft fields equal the base, the draft SHALL be removed.
+The system SHALL let an authorized user edit the summary of editable Cucumber tests in the explicitly identified project's repository. The Gherkin definition SHALL be edited only on the Edit & Compare screen. The grid SHALL present effective values from that user's draft when present and otherwise from the user's immutable draft base/current prepared snapshot. Summary SHALL be populated from full test details rather than inferred from the lightweight index. Manual, Generic, unknown, or not-yet-hydrated tests SHALL NOT be editable. Edits SHALL be private to the user and SHALL NOT send mutation requests to Jira or Xray. A draft field SHALL represent only a change from that user's immutable base; when all draft fields equal the base, the draft SHALL be removed.
 
 #### Scenario: Edit a Cucumber summary
 - **WHEN** an authorized user changes a hydrated Cucumber test's summary in the repository grid
@@ -412,6 +423,7 @@ The system SHALL let an authorized user edit the summary, labels, and status of 
 - **WHEN** an authorized user views a repository page of lightweight test rows
 - **THEN** full details needed for editing are loaded for the bounded displayed page
 - **AND** the grid shows summary, labels, status, and editability based on those details
+- **AND** the grid shows summary and editability based on those details
 - **AND** the lightweight repository index remains free of labels, status, and test type
 
 #### Scenario: Do not edit before hydration or after hydration failure
@@ -428,16 +440,11 @@ The system SHALL let an authorized user edit the summary, labels, and status of 
 - **THEN** the draft is deleted
 - **AND** the test no longer appears as changed for that user
 
-### Requirement: Validate and autosave individual draft edits
-The system SHALL validate summary values as non-empty and no longer than 255 characters, and SHALL reject labels containing spaces. Duplicate labels SHALL be represented once. Status values SHALL be limited to statuses available for the Test issue type in the authorized project's metadata. Valid edits SHALL be saved to the server as a user-owned draft after a debounce of no more than 500 ms. Invalid edits SHALL remain visibly marked with an actionable reason and SHALL NOT be persisted. Save failures SHALL retain the user's local edit, show an error state, and allow retry without silently replacing a newer edit with an older in-flight save.
+### Requirement: Validate and autosave summary edits
+The system SHALL validate summary values as non-empty and no longer than 255 characters. Invalid summary edits SHALL remain visibly marked with an actionable reason and SHALL NOT be persisted. Valid edits SHALL be saved to the server as a user-owned draft after a debounce of no more than 500 ms. Save failures SHALL retain the user's local edit, show an error state, and allow retry without silently replacing a newer edit with an older in-flight save.
 
-#### Scenario: Reject a label containing spaces
-- **WHEN** a user enters the label `needs review`
-- **THEN** the label editor shows `Jira labels cannot contain spaces`
-- **AND** that invalid value is not saved to the server
-
-#### Scenario: Reject invalid summary and status values
-- **WHEN** a summary is empty or exceeds 255 characters, or a status is not available for the Test issue type
+#### Scenario: Reject an invalid summary
+- **WHEN** a summary is empty or exceeds 255 characters
 - **THEN** the invalid cell displays its validation reason
 - **AND** the invalid value is not persisted
 
@@ -452,12 +459,12 @@ The system SHALL validate summary values as non-empty and no longer than 255 cha
 - **AND** retry does not overwrite a newer edit with an older in-flight value
 
 ### Requirement: Provide a virtualized, keyboard-operable editing grid
-The repository SHALL retain project, folder, search, and pagination context while adding editable Summary, Labels, and Status columns, a key link, selection, folder, and a read-only Gherkin preview. The grid SHALL virtualize rendered rows and keep 1,000 indexed tests responsive without removing bounded server-side pagination. Keyboard users SHALL be able to move between editable cells with arrows, enter edit mode with Enter or F2, cancel with Escape, and move to the next cell with Tab. Changed cells and rows SHALL be distinguishable; each changed row SHALL provide Revert. A visible note SHALL explain that changes are local drafts and are not written to Xray until review and sync.
+The repository SHALL retain project, folder, search, and pagination context while providing an editable Summary column, a key link, selection, folder, a read-only Gherkin preview, and a draft indicator. The grid SHALL virtualize rendered rows and keep 1,000 indexed tests responsive without removing bounded server-side pagination. Keyboard users SHALL be able to enter edit mode on a summary with Enter or F2, cancel with Escape, and move between editable rows with Up and Down. Changed rows SHALL be distinguishable; each changed row SHALL provide Revert. A visible note SHALL explain that changes are local drafts and are not written to Xray until review and sync.
 
 #### Scenario: Navigate and edit using only the keyboard
-- **WHEN** a keyboard user moves through the grid, opens a cell with Enter or F2, edits it, and presses Tab
-- **THEN** focus and editing move according to the grid keyboard contract
-- **AND** Escape cancels the current uncommitted cell edit
+- **WHEN** a keyboard user moves through the grid, opens a summary with Enter or F2, edits it, and presses Down
+- **THEN** focus and editing move to the next editable row according to the grid keyboard contract
+- **AND** Escape cancels the current uncommitted summary edit
 
 #### Scenario: Revert a changed row
 - **WHEN** a user activates Revert for a changed test row
@@ -467,7 +474,7 @@ The repository SHALL retain project, folder, search, and pagination context whil
 #### Scenario: Preview Gherkin without editing it in the grid
 - **WHEN** a user opens a row's Gherkin preview from the grid
 - **THEN** the Gherkin is displayed read-only
-- **AND** editing Gherkin remains available only through the later Gherkin editor capability
+- **AND** editing Gherkin remains available only on the Edit & Compare screen
 
 #### Scenario: Render a large repository smoothly
 - **WHEN** the repository contains 1,000 tests
@@ -475,10 +482,10 @@ The repository SHALL retain project, folder, search, and pagination context whil
 - **AND** the user can navigate the bounded result pages without losing project or filter context
 
 ### Requirement: Edit a test on its detail page and expose draft actions
-The authorized `/tests/:key` page SHALL allow editing the test's summary, labels, and status under the same validation, private-draft, no-op-removal, and read-only test rules as the repository grid. It SHALL provide Undo all to restore that user's immutable base for the test. The application header SHALL display the count of current-user drafts for the current project; the repository toolbar SHALL display the count of tests with changes and provide `Review N changes`, disabled when the count is zero and navigating to the project's review route when enabled. Draft counts SHALL exclude other users and other projects. The Gherkin preview on the detail page SHALL remain read-only in this change.
+The authorized `/tests/:key` page SHALL allow editing the test's summary under the same validation, private-draft, no-op-removal, and read-only test rules as the repository grid. It SHALL provide Undo all to restore that user's immutable base for the test. The application header SHALL display the count of current-user drafts for the current project; the repository toolbar SHALL display the count of tests with changes and provide `Review N changes`, disabled when the count is zero and navigating to the project's review route when enabled. Draft counts SHALL exclude other users and other projects. The Gherkin preview on the detail page SHALL remain read-only in this change.
 
 #### Scenario: Edit a test on its detail page
-- **WHEN** a user edits a Cucumber test's summary, labels, or status on `/tests/:key`
+- **WHEN** a user edits a Cucumber test's summary on `/tests/:key`
 - **THEN** the edit follows the same autosave, validation, and no-op rules as the grid
 - **AND** the page preserves its explicit project and back-navigation context
 

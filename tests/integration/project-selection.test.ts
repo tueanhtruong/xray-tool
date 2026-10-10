@@ -162,10 +162,13 @@ describe('Jira/Xray project selection', () => {
     const workspaceId = sessionBody.workspace.id
     const selected = await select('10001')
     expect(selected.status, await selected.clone().text()).toBe(200)
-    const selectedBody = await selected.json() as { status: string; projectId: string }
+    const selectedBody = (await selected.json()) as { status: string; projectId: string }
     expect(selectedBody.status).toBe('ready')
     expect(selectedBody.projectId).toBeTruthy()
-    await queryRows(`DELETE FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId" IN (SELECT id FROM "Project" WHERE "jiraProjectId" IN ('10002','10003'))`, [workspaceId])
+    await queryRows(
+      `DELETE FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId" IN (SELECT id FROM "Project" WHERE "jiraProjectId" IN ('10002','10003'))`,
+      [workspaceId],
+    )
 
     const saved = await queryRows<{
       jiraProjectKey: string
@@ -199,17 +202,19 @@ describe('Jira/Xray project selection', () => {
 
     // Project association retains prior cache and remains additive despite user drafts.
     const projectDbId = selectedBody.projectId
-    await queryRows(
-      'INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)',
-      ['folder-old-project', projectDbId, '/old', 'old'],
-    )
+    await queryRows('INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)', [
+      'folder-old-project',
+      projectDbId,
+      '/old',
+      'old',
+    ])
     await queryRows(
       'INSERT INTO "TestCase" (id, "projectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())',
       ['test-old-project', projectDbId, 'issue-old', 'ONEDS-1', 'Cucumber'],
     )
     await queryRows(
-      'INSERT INTO "TestCaseSnapshot" (id, "testCaseId", summary, labels, status, fingerprint) VALUES ($1, $2, $3, $4, $5, $6)',
-      ['snapshot-old-project', 'test-old-project', 'Old summary', [], 'Ready', 'old-fingerprint'],
+      'INSERT INTO "TestCaseSnapshot" (id, "testCaseId", summary, fingerprint) VALUES ($1, $2, $3, $4)',
+      ['snapshot-old-project', 'test-old-project', 'Old summary', 'old-fingerprint'],
     )
     await queryRows(
       'INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, $4, now())',
@@ -221,20 +226,46 @@ describe('Jira/Xray project selection', () => {
       await queryRows('SELECT id FROM "Folder" WHERE id = $1', ['folder-old-project']),
     ).toHaveLength(1)
     expect(
-      await queryRows('SELECT count(*)::int AS count FROM "WorkspaceProject" WHERE "workspaceId" = $1', [workspaceId]),
+      await queryRows(
+        'SELECT count(*)::int AS count FROM "WorkspaceProject" WHERE "workspaceId" = $1',
+        [workspaceId],
+      ),
     ).toEqual([{ count: 2 }])
 
     // Drafts and caches in another workspace are isolated from this switch.
     const otherWorkspaceId = 'workspace-other-project'
     await queryRows(
       'INSERT INTO "Workspace" (id, "ownerId", "siteOrigin", "siteUrl", name, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, now(), now())',
-      [otherWorkspaceId, workspace!.ownerId, 'https://other.atlassian.net', 'https://other.atlassian.net', 'Other workspace'],
+      [
+        otherWorkspaceId,
+        workspace!.ownerId,
+        'https://other.atlassian.net',
+        'https://other.atlassian.net',
+        'Other workspace',
+      ],
     )
-    await queryRows('INSERT INTO "Project" (id, "tenantIdentityKind", "tenantIdentity", "jiraProjectId", "jiraProjectKey", "jiraProjectName", "testIssueTypeId", "testIssueTypeName", "projectStatuses", "updatedAt") VALUES ($1, \'SITE_ORIGIN\', \'https://other.atlassian.net\', \'10001\', \'OTHER\', \'Other\', \'100\', \'Test\', \'[]\', now()) ON CONFLICT ("tenantIdentityKind", "tenantIdentity", "jiraProjectId") DO NOTHING', ['other-tenant-project'])
-    await queryRows('INSERT INTO "WorkspaceProject" (id, "workspaceId", "projectId") VALUES ($1, $2, $3)', ['other-workspace-access', otherWorkspaceId, 'other-tenant-project'])
-    await queryRows('INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)', ['folder-other-project', 'other-tenant-project', '/other', 'other'])
-    await queryRows('INSERT INTO "TestCase" (id, "projectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())', ['test-other-project', 'other-tenant-project', 'issue-other', 'OTHER-2', 'Cucumber'])
-    await queryRows('INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, $4, now())', ['draft-other-project', workspace!.ownerId, 'test-other-project', 'Other changed summary'])
+    await queryRows(
+      'INSERT INTO "Project" (id, "tenantIdentityKind", "tenantIdentity", "jiraProjectId", "jiraProjectKey", "jiraProjectName", "testIssueTypeId", "testIssueTypeName", "projectStatuses", "updatedAt") VALUES ($1, \'SITE_ORIGIN\', \'https://other.atlassian.net\', \'10001\', \'OTHER\', \'Other\', \'100\', \'Test\', \'[]\', now()) ON CONFLICT ("tenantIdentityKind", "tenantIdentity", "jiraProjectId") DO NOTHING',
+      ['other-tenant-project'],
+    )
+    await queryRows(
+      'INSERT INTO "WorkspaceProject" (id, "workspaceId", "projectId") VALUES ($1, $2, $3)',
+      ['other-workspace-access', otherWorkspaceId, 'other-tenant-project'],
+    )
+    await queryRows('INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)', [
+      'folder-other-project',
+      'other-tenant-project',
+      '/other',
+      'other',
+    ])
+    await queryRows(
+      'INSERT INTO "TestCase" (id, "projectId", "issueId", key, "testType", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())',
+      ['test-other-project', 'other-tenant-project', 'issue-other', 'OTHER-2', 'Cucumber'],
+    )
+    await queryRows(
+      'INSERT INTO "TestCaseDraft" (id, "userId", "testCaseId", summary, "updatedAt") VALUES ($1, $2, $3, $4, now())',
+      ['draft-other-project', workspace!.ownerId, 'test-other-project', 'Other changed summary'],
+    )
     await queryRows('DELETE FROM "TestCaseDraft" WHERE id = $1', ['draft-old-project'])
     const switched = await select('10002')
     expect(switched.status, await switched.clone().text()).toBe(200)
@@ -252,10 +283,16 @@ describe('Jira/Xray project selection', () => {
     ).toHaveLength(1)
 
     // A failed Xray probe does not create a project association.
-    await queryRows(
-      'INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)',
-      ['folder-current-project', (await queryRows<{ id: string }>(`SELECT id FROM "Project" WHERE id=$1`, [selectedBody.projectId]))[0]!.id, '/current', 'current'],
-    )
+    await queryRows('INSERT INTO "Folder" (id, "projectId", path, name) VALUES ($1, $2, $3, $4)', [
+      'folder-current-project',
+      (
+        await queryRows<{ id: string }>(`SELECT id FROM "Project" WHERE id=$1`, [
+          selectedBody.projectId,
+        ])
+      )[0]!.id,
+      '/current',
+      'current',
+    ])
     const failedProbeSwitch = await select('999')
     expect(failedProbeSwitch.status).toBe(403)
     expect(
@@ -273,7 +310,10 @@ describe('Jira/Xray project selection', () => {
 
     const failedSwitch = await select('999')
     expect(failedSwitch.status).toBe(403)
-    const stillAssociated = await queryRows('SELECT id FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId"=$2', [workspaceId, selectedBody.projectId])
+    const stillAssociated = await queryRows(
+      'SELECT id FROM "WorkspaceProject" WHERE "workspaceId"=$1 AND "projectId"=$2',
+      [workspaceId, selectedBody.projectId],
+    )
     expect(stillAssociated).toHaveLength(1)
   })
 
@@ -288,7 +328,10 @@ describe('Jira/Xray project selection', () => {
     })
     expect(page.status).toBe(302)
     expect(page.headers.get('location')).toBe('/settings?chooseProject=1')
-    const ambiguous = await fetch(`${server.url}/repository?project=unknown`, { headers: { cookie }, redirect: 'manual' })
+    const ambiguous = await fetch(`${server.url}/repository?project=unknown`, {
+      headers: { cookie },
+      redirect: 'manual',
+    })
     expect(ambiguous.status).toBe(302)
     expect(ambiguous.headers.get('location')).toBe('/settings?chooseProject=1')
     const api = await fetch(`${server.url}/api/repository/ready`, { headers: { cookie } })

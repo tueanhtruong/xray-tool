@@ -457,7 +457,7 @@
         "pnpm test:int tests/integration/drafts-api.test.ts tests/integration/drafts-migration.test.ts",
         "pnpm test:e2e e2e/us-09-1-edit-compare.spec.ts"
       ],
-      "state": "not_started",
+      "state": "active",
       "evidence": null
     },
     {

@@ -18,7 +18,10 @@ async function setup(page: Page, request: APIRequestContext) {
 const detailCount = async (request: APIRequestContext) =>
   (await mockState<{ xrayDetailQueryCount: number }>(request)).xrayDetailQueryCount
 
-test('pulls a lightweight index and reports completion without loading full details', async ({ page, request }) => {
+test('pulls a lightweight index and reports completion without loading full details', async ({
+  page,
+  request,
+}) => {
   await setup(page, request)
   await page.getByTestId('repository-link').click()
   await expect(page).toHaveURL('/repository')
@@ -32,7 +35,7 @@ test('pulls a lightweight index and reports completion without loading full deta
   await page.getByRole('link', { name: 'ONEDS-14044' }).click()
   await expect(page).toHaveURL('/tests/ONEDS-14044')
   await expect(page.getByTestId('test-gherkin')).toContainText('Scenario Outline: Search')
-  await expect(page.getByTestId('test-labels')).toContainText('api')
+  await expect(page.getByTestId('test-type')).toContainText('Cucumber')
   expect(await detailCount(request)).toBe(1)
   await page.getByTestId('back-to-repository').click()
 

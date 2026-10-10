@@ -1,6 +1,6 @@
 # 0004 — Labels = scenario-level tags
 
-- Status: accepted (assumption, revisable before US-07/US-11)
+- Status: superseded by [0016](0016-stop-tag-sync-and-labels.md)
 - Date: 2026-09-29
 - Source: [user-stories README, assumption 2](../user-stories/README.md#assumptions-to-confirm)
 

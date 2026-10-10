@@ -1,5 +1,8 @@
 import { getRouterParam } from 'h3'
-import { listUserAuthorizedProjectDrafts, requireAuthorizedProject } from '../../../../services/project-selection'
+import {
+  listUserAuthorizedProjectDrafts,
+  requireAuthorizedProject,
+} from '../../../../services/project-selection'
 import { getAppSession } from '../../../../utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -16,12 +19,12 @@ export default defineEventHandler(async (event) => {
   return {
     project: { id: project.id, key: project.jiraProjectKey, name: project.jiraProjectName },
     count: drafts.length,
-    values: drafts.map(({ id: draftId, updatedAt, testCase, summary, labels, status, gherkin, ...fields }) => ({
+    values: drafts.map(({ id: draftId, updatedAt, testCase, summary, gherkin, ...fields }) => ({
       ...testCase,
       ...fields,
       draftId,
       updatedAt,
-      localFields: { summary, labels, status, gherkin },
+      localFields: { summary, gherkin },
     })),
   }
 })

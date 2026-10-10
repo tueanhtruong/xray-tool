@@ -3,40 +3,41 @@ import {
   composeDraftFields,
   diffDraftFields,
   hasDraftChanges,
-  normalizeLabels,
   validateDraftFields,
 } from '../../shared/drafts/rules'
 import { calculateGridWindow } from '../../shared/drafts/grid-window'
 
-const base = { summary: 'Original', labels: ['api', 'ui'], status: 'Ready' }
+const base = { summary: 'Original', gherkin: 'Scenario: one' }
 
 describe('draft rules', () => {
-  it('normalizes and deduplicates labels', () => {
-    expect(normalizeLabels([' ui ', 'api', 'ui', ''])).toEqual(['api', 'ui'])
-  })
-
-  it('validates required summary, summary length, labels, and allowed statuses', () => {
-    expect(validateDraftFields({ summary: ' ', labels: ['needs review'], status: 'Unknown' }, ['Ready'])).toMatchObject({
+  it('validates required summary and summary length only', () => {
+    expect(validateDraftFields({ summary: ' ', gherkin: null })).toMatchObject({
       valid: false,
-      errors: {
-        summary: 'Summary is required.',
-        labels: 'Jira labels cannot contain spaces',
-        status: 'Choose a status available for the Test issue type.',
-      },
+      errors: { summary: 'Summary is required.' },
     })
-    expect(validateDraftFields({ summary: 'x'.repeat(256), labels: [], status: 'Ready' }, ['Ready']).errors.summary)
-      .toBe('Summary must be 255 characters or fewer.')
+    expect(validateDraftFields({ summary: 'x'.repeat(256), gherkin: null }).errors.summary).toBe(
+      'Summary must be 255 characters or fewer.',
+    )
+    expect(validateDraftFields({ summary: 'Ok', gherkin: 'Scenario: two' })).toEqual({
+      valid: true,
+      errors: {},
+    })
   })
 
   it('composes nullable overrides over an immutable base', () => {
-    expect(composeDraftFields(base, { summary: 'Changed', labels: null, status: 'To Do' })).toEqual({
-      summary: 'Changed', labels: ['api', 'ui'], status: 'To Do',
+    expect(composeDraftFields(base, { summary: 'Changed', gherkin: null })).toEqual({
+      summary: 'Changed',
+      gherkin: 'Scenario: one',
+    })
+    expect(composeDraftFields(base, { summary: null, gherkin: 'Scenario: two' })).toEqual({
+      summary: 'Original',
+      gherkin: 'Scenario: two',
     })
   })
 
   it('clears fields equal to base and identifies no-op drafts', () => {
-    const overrides = diffDraftFields(base, { summary: 'Changed', labels: ['ui', 'api'], status: 'Ready' })
-    expect(overrides).toEqual({ summary: 'Changed', labels: null, status: null })
+    const overrides = diffDraftFields(base, { summary: 'Changed', gherkin: 'Scenario: one' })
+    expect(overrides).toEqual({ summary: 'Changed', gherkin: null })
     expect(hasDraftChanges(overrides)).toBe(true)
     expect(hasDraftChanges(diffDraftFields(base, base))).toBe(false)
   })

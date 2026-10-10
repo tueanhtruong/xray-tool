@@ -13,7 +13,10 @@ export function calculateGridWindow(
   overscan: number,
 ): GridWindow {
   const maxStart = Math.max(0, totalRows - (viewportRows + overscan * 2))
-  const start = Math.min(maxStart, Math.max(0, Math.floor(Math.max(0, scrollTop) / rowHeight) - overscan))
+  const start = Math.min(
+    maxStart,
+    Math.max(0, Math.floor(Math.max(0, scrollTop) / rowHeight) - overscan),
+  )
   const end = Math.min(totalRows, start + viewportRows + overscan * 2)
   return {
     start,
@@ -21,6 +24,31 @@ export function calculateGridWindow(
     topSpacer: start * rowHeight,
     bottomSpacer: Math.max(0, (totalRows - end) * rowHeight),
   }
+}
+
+/** Window over rows of individual heights, so expanded rows keep the rows below them in place. */
+export function calculateVariableWindow(
+  heights: readonly number[],
+  scrollTop: number,
+  viewportHeight: number,
+  overscan: number,
+): GridWindow {
+  const total = heights.length
+  const top = Math.max(0, scrollTop)
+  const bottom = top + Math.max(0, viewportHeight)
+  let first = 0
+  let offset = 0
+  while (first < total && offset + heights[first]! <= top) offset += heights[first++]!
+  let last = first
+  let edge = offset
+  while (last < total && edge < bottom) edge += heights[last++]!
+  const start = Math.max(0, first - overscan)
+  const end = Math.min(total, last + overscan)
+  let topSpacer = 0
+  for (let index = 0; index < start; index += 1) topSpacer += heights[index]!
+  let bottomSpacer = 0
+  for (let index = end; index < total; index += 1) bottomSpacer += heights[index]!
+  return { start, end, topSpacer, bottomSpacer }
 }
 
 export function findEditableRow(

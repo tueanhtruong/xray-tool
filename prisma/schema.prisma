@@ -206,8 +206,6 @@ model TestCaseSnapshot {
   id              String    @id @default(cuid())
   testCaseId      String    @unique
   summary         String
-  labels          String[]
-  status          String
   gherkin         String?
   remoteUpdatedAt DateTime?
   fingerprint     String
@@ -220,12 +218,8 @@ model TestCaseDraft {
   userId                 String
   testCaseId             String
   summary                String?
-  labels                 Json?
-  status                 String?
   gherkin                String?
   baseSummary            String?
-  baseLabels             String[] @default([])
-  baseStatus             String?
   baseGherkin            String?
   baseRemoteUpdatedAt    DateTime?
   baseFingerprint        String?

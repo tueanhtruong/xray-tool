@@ -115,7 +115,9 @@ test.describe('landing and login', () => {
     expect(apiCalls).toEqual([])
   })
 
-  test('login shows tabs, validates the site URL, and supports arrow-key navigation', async ({ page }) => {
+  test('login shows tabs, validates the site URL, and supports arrow-key navigation', async ({
+    page,
+  }) => {
     await page.goto('/login')
     await hydrated(page)
     const oauth = page.getByRole('tab', { name: 'Atlassian OAuth' })
@@ -158,14 +160,18 @@ test.describe('landing and login', () => {
     await expect(page).toHaveURL('/settings')
   })
 
-  test('settings keeps the onboarding behavior: connect Xray, select a project', async ({ page }) => {
+  test('settings keeps the onboarding behavior: connect Xray, select a project', async ({
+    page,
+  }) => {
     await signInWithOAuth(page)
     await connectXrayAndSelectProject(page)
     await expect(page).toHaveURL(/\/repository\?project=/)
     await expect(page.getByTestId('header-project')).toContainText('ONEDS')
   })
 
-  test('signed-in landing offers Open repository; /login bounces to the repository', async ({ page }) => {
+  test('signed-in landing offers Open repository; /login bounces to the repository', async ({
+    page,
+  }) => {
     await signInWithOAuth(page)
     await page.goto('/')
     await expect(page.getByTestId('landing-cta')).toHaveText('Open repository')
@@ -223,13 +229,15 @@ test.describe('repository', () => {
     await expect(page.getByRole('table')).toContainText('ONEDS-14043')
   })
 
-  test('has a 260px sidebar and a list with Select, Key, Summary and Folder only', async ({ page }) => {
+  test('has a 260px sidebar and a list with Select, Key, Summary and Folder only', async ({
+    page,
+  }) => {
     await openRepository(page)
     const sidebar = page.getByTestId('repository').locator('aside')
     expect((await sidebar.boundingBox())?.width).toBe(260)
     const header = page.getByRole('table').locator('thead')
     for (const name of ['Key', 'Summary', 'Folder']) await expect(header).toContainText(name)
-    await expect(page.getByRole('checkbox', { name: 'Select all visible tests' })).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: 'Select all matching tests' })).toBeVisible()
     for (const name of ['Labels', 'Status', 'Review']) {
       await expect(page.getByTestId('repository')).not.toContainText(new RegExp(`\\b${name}\\b`))
     }
@@ -264,7 +272,7 @@ test.describe('repository', () => {
 
   test('select-all selects every visible row', async ({ page }) => {
     await openRepository(page)
-    await page.getByRole('checkbox', { name: 'Select all visible tests' }).check()
+    await page.getByRole('checkbox', { name: 'Select all matching tests' }).check()
     await expect(page.getByTestId('selected-count')).toHaveText('5 selected')
     await expect(page.getByTestId('open-selected')).toBeDisabled()
     await page.getByTestId('clear-selection').click()
@@ -275,7 +283,9 @@ test.describe('repository', () => {
     page,
   }) => {
     const snapshots = () =>
-      queryRows(`SELECT count(*)::int AS n FROM "TestCaseSnapshot" s JOIN "TestCase" t ON t.id = s."testCaseId" WHERE t.key = 'ONEDS-14043'`)
+      queryRows(
+        `SELECT count(*)::int AS n FROM "TestCaseSnapshot" s JOIN "TestCase" t ON t.id = s."testCaseId" WHERE t.key = 'ONEDS-14043'`,
+      )
     const before = await snapshots()
     await openRepository(page)
     await page.getByRole('treeitem', { name: /^Autocomplete/ }).click()
@@ -294,7 +304,10 @@ test.describe('repository', () => {
   test('an unknown key shows Test not found with a way back', async ({ page }) => {
     await signInWithOAuth(page, '/tests/NOPE-1')
     await expect(page.getByTestId('test-not-found')).toContainText('Test not found')
-    await page.getByTestId('test-not-found').getByRole('link', { name: 'Back to repository' }).click()
+    await page
+      .getByTestId('test-not-found')
+      .getByRole('link', { name: 'Back to repository' })
+      .click()
     await expect(page).toHaveURL(/\/repository\?project=/)
   })
 
@@ -361,7 +374,9 @@ test.describe('responsive and accessible', () => {
   })
 
   for (const scheme of ['light', 'dark'] as const) {
-    test(`has no serious or critical accessibility violations in the ${scheme} theme`, async ({ page }) => {
+    test(`has no serious or critical accessibility violations in the ${scheme} theme`, async ({
+      page,
+    }) => {
       await page.emulateMedia({ colorScheme: scheme })
       await page.goto('/')
       await hydrated(page)
@@ -384,6 +399,8 @@ test.describe('responsive and accessible', () => {
   }
 })
 
-test('no write request reached the mock Jira or Xray during the whole spec', async ({ request }) => {
+test('no write request reached the mock Jira or Xray during the whole spec', async ({
+  request,
+}) => {
   expect(await writeRequestCount(request)).toBe(0)
 })

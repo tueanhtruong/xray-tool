@@ -2,6 +2,26 @@
 
 Newest entry first. One entry per session: done, in progress, next, open questions.
 
+## 2026-10-10 — US-09.1 archived; verification pending
+
+**Done**
+
+- `pnpm check` passed under Node 24.
+- Synced the US-09.1 delta specs into the main specs and `openspec validate --specs` passed (20 specs).
+- Archived `us-09-1-bulk-editor-rework` at `openspec/changes/archive/2026-10-10-us-09-1-bulk-editor-rework` after confirming the 16 unchecked-task warning.
+
+**In progress**
+
+- US-09.1 remains `active`. `pnpm verify US-09.1` stopped at its clean-working-tree precondition; no verification commands ran and no passing evidence was recorded.
+
+**Next**
+
+- Finish the remaining US-09.1 tasks, commit the implementation, then rerun `pnpm verify US-09.1` on a clean tree.
+
+**Open questions**
+
+- None.
+
 ## 2026-10-10 — US-09 verified and passing
 
 **Done**

@@ -14,15 +14,6 @@ defineEmits<{ clear: []; open: [] }>()
     <strong class="text-primary" data-testid="selected-count">{{ count }} selected</strong>
     <button
       type="button"
-      class="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-inverted hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
-      :disabled="count !== 1 || opening"
-      data-testid="open-selected"
-      @click="$emit('open')"
-    >
-      {{ opening ? 'Opening…' : 'Open in editor' }}
-    </button>
-    <button
-      type="button"
       class="rounded-lg border border-default bg-elevated px-3 py-1 text-xs hover:bg-muted"
       data-testid="clear-selection"
       @click="$emit('clear')"

@@ -77,8 +77,9 @@ test('browses, searches, deep-links, and selects tests for editor work', async (
   await page.getByRole('treeitem', { name: /^Autocomplete/ }).click()
   await expect(page).toHaveURL(/folder=\/Autocomplete/)
   await expect(page.getByRole('table')).toContainText('ONEDS-14043')
-  await expect(page.getByRole('textbox', { name: 'Summary for ONEDS-14043' })).toHaveValue('Repository test 1')
-  await expect(page.getByRole('combobox', { name: 'Status for ONEDS-14043' })).toHaveValue('Ready')
+  await expect(page.getByRole('textbox', { name: 'Summary for ONEDS-14043' })).toHaveValue(
+    'Repository test 1',
+  )
   await expect(page.getByRole('table')).not.toContainText('ONEDS-14044')
   await page.getByRole('checkbox', { name: 'Include subfolders' }).check()
   await expect(page.getByRole('table')).toContainText('ONEDS-14044')
@@ -102,15 +103,14 @@ test('browses, searches, deep-links, and selects tests for editor work', async (
 
 test('shows escaped remote content in the read-only test page', async ({ page, request }) => {
   await setupRepository(page, request)
-  const detailsResponse = page.waitForResponse((response) => response.url().includes('/api/tests/by-key/'))
+  const detailsResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/tests/by-key/'),
+  )
   await page.getByRole('link', { name: 'ONEDS-14045' }).click()
   expect((await detailsResponse).status()).toBe(200)
   await expect(page.getByTestId('test-type')).toContainText('Cucumber')
   await expect(page.getByTestId('test-details')).toBeVisible()
   await expect(page.getByTestId('test-details')).toContainText('<img src=x onerror=alert(1)>')
-  await expect(page.getByTestId('test-labels')).toContainText('need-review')
-  await expect(page.getByTestId('test-labels')).toContainText('ui')
-  await expect(page.getByTestId('test-status')).toHaveText('Ready')
   await expect(page.locator('main img')).toHaveCount(0)
   const link = page.getByRole('link', { name: 'Open in Jira' })
   await expect(link).toHaveAttribute('target', '_blank')
@@ -124,8 +124,9 @@ test('shows editable columns after bounded detail hydration', async ({ page, req
   await expect(table.locator('thead')).toContainText('Key')
   await expect(table.locator('thead')).toContainText('Summary')
   await expect(table.locator('thead')).toContainText('Folder')
-  await expect(table.locator('thead')).toContainText('Labels')
-  await expect(table.locator('thead')).toContainText('Status')
+  await expect(table.locator('thead')).toContainText('Gherkin')
+  await expect(table.locator('thead')).not.toContainText('Labels')
+  await expect(table.locator('thead')).not.toContainText('Status')
   await expect(table).toContainText('ONEDS-14043')
 })
 

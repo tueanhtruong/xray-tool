@@ -50,7 +50,10 @@ async function oauthCallback(
 }
 
 const sessionOf = (response: Response) =>
-  response.headers.getSetCookie().find((c) => c.startsWith('nuxt-session='))?.split(';', 1)[0] ?? ''
+  response.headers
+    .getSetCookie()
+    .find((c) => c.startsWith('nuxt-session='))
+    ?.split(';', 1)[0] ?? ''
 
 describe('route guards, return paths, and key lookup', () => {
   let server: RunningServer
@@ -82,7 +85,11 @@ describe('route guards, return paths, and key lookup', () => {
     await fetch(`${server.url}/api/auth/xray`, {
       method: 'PUT',
       headers: { cookie, origin: server.url, 'content-type': 'application/json' },
-      body: JSON.stringify({ region: 'EU', clientId: 'mock-xray-client-id', clientSecret: 'mock-xray-client-secret' }),
+      body: JSON.stringify({
+        region: 'EU',
+        clientId: 'mock-xray-client-id',
+        clientSecret: 'mock-xray-client-secret',
+      }),
     })
     const selected = await fetch(`${server.url}/api/project`, {
       method: 'PUT',
@@ -119,7 +126,10 @@ describe('route guards, return paths, and key lookup', () => {
       const cases: Array<[string, string]> = [
         ['/settings', '/login?next=%2Fsettings'],
         ['/repository', '/login?next=%2Frepository'],
-        ['/repository?folder=/Autocomplete', '/login?next=%2Frepository%3Ffolder%3D%2FAutocomplete'],
+        [
+          '/repository?folder=/Autocomplete',
+          '/login?next=%2Frepository%3Ffolder%3D%2FAutocomplete',
+        ],
         ['/tests/ONEDS-14043', '/login?next=%2Ftests%2FONEDS-14043'],
       ]
       for (const [path, location] of cases) {
@@ -130,27 +140,40 @@ describe('route guards, return paths, and key lookup', () => {
     })
 
     it('serves protected pages to a signed-in owner of a ready workspace', async () => {
-      for (const path of ['/settings', `/repository?project=${projectId}`, `/tests/ONEDS-14043?project=${projectId}`]) {
-        const response = await fetch(`${server.url}${path}`, { headers: { cookie }, redirect: 'manual' })
+      for (const path of [
+        '/settings',
+        `/repository?project=${projectId}`,
+        `/tests/ONEDS-14043?project=${projectId}`,
+      ]) {
+        const response = await fetch(`${server.url}${path}`, {
+          headers: { cookie },
+          redirect: 'manual',
+        })
         expect(response.status, path).toBe(200)
       }
     })
 
     it('requires explicit project choice for legacy repository routes', async () => {
-      const response = await fetch(`${server.url}/repository?project=unknown`, { headers: { cookie }, redirect: 'manual' })
+      const response = await fetch(`${server.url}/repository?project=unknown`, {
+        headers: { cookie },
+        redirect: 'manual',
+      })
       expect(response.status).toBe(302)
       expect(response.headers.get('location')).toBe(`/repository?project=${projectId}`)
     })
 
     it('bounces a signed-in user from /login to a safe destination', async () => {
       const cases: Array<[string, string]> = [
-      ['/login', '/repository'],
-      ['/login?next=%2Ftests%2FONEDS-14043', '/tests/ONEDS-14043'],
-      ['/login?next=https%3A%2F%2Fevil.example%2Fx', '/repository'],
-      ['/login?next=%2F%2Fevil.example', '/repository'],
+        ['/login', '/repository'],
+        ['/login?next=%2Ftests%2FONEDS-14043', '/tests/ONEDS-14043'],
+        ['/login?next=https%3A%2F%2Fevil.example%2Fx', '/repository'],
+        ['/login?next=%2F%2Fevil.example', '/repository'],
       ]
       for (const [path, location] of cases) {
-        const response = await fetch(`${server.url}${path}`, { headers: { cookie }, redirect: 'manual' })
+        const response = await fetch(`${server.url}${path}`, {
+          headers: { cookie },
+          redirect: 'manual',
+        })
         expect(response.status, path).toBe(302)
         expect(response.headers.get('location'), path).toBe(location)
       }
@@ -164,7 +187,9 @@ describe('route guards, return paths, and key lookup', () => {
     })
 
     it('carries next through OAuth in a signed HttpOnly cookie and uses it once', async () => {
-      const { start, callback } = await oauthCallback(server, { next: '/repository?folder=/Autocomplete' })
+      const { start, callback } = await oauthCallback(server, {
+        next: '/repository?folder=/Autocomplete',
+      })
       const nextCookie = start.headers.getSetCookie().find((c) => c.startsWith('login_next='))
       expect(nextCookie).toBeDefined()
       expect(nextCookie).toMatch(/HttpOnly/i)
@@ -181,7 +206,9 @@ describe('route guards, return paths, and key lookup', () => {
     })
 
     it('falls back to the default when the next cookie signature is invalid', async () => {
-      const { callback } = await oauthCallback(server, { extraCookie: 'login_next=/tests/X-1.forgedsignature' })
+      const { callback } = await oauthCallback(server, {
+        extraCookie: 'login_next=/tests/X-1.forgedsignature',
+      })
       expect(callback.headers.get('location')).toBe('/repository')
     })
 
@@ -210,24 +237,33 @@ describe('route guards, return paths, and key lookup', () => {
   describe('GET /api/tests/by-key/:key', () => {
     it('returns fresh details for a cached key without persisting them', async () => {
       await control({ xrayTestMode: 'five', xrayTestRevision: 0, resetXrayCounts: true })
-      const before = await queryRows('SELECT id FROM "TestCaseSnapshot" WHERE "testCaseId" = $1', ['guard-1'])
-      const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`, { headers: { cookie } })
+      const before = await queryRows('SELECT id FROM "TestCaseSnapshot" WHERE "testCaseId" = $1', [
+        'guard-1',
+      ])
+      const response = await fetch(
+        `${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`,
+        { headers: { cookie } },
+      )
       expect(response.status).toBe(200)
       expect(await response.json()).toMatchObject({
         key: 'ONEDS-14043',
         summary: 'Repository test 1',
-        labels: expect.any(Array),
-        status: expect.any(String),
         readOnly: expect.any(Boolean),
       })
-      const counts = (await (await fetch(new URL('/__control', mockUrl))).json()) as { xrayDetailQueryCount: number }
+      const counts = (await (await fetch(new URL('/__control', mockUrl))).json()) as {
+        xrayDetailQueryCount: number
+      }
       expect(counts.xrayDetailQueryCount).toBe(1)
-      expect(await queryRows('SELECT id FROM "TestCaseSnapshot" WHERE "testCaseId" = $1', ['guard-1'])).toEqual(before)
+      expect(
+        await queryRows('SELECT id FROM "TestCaseSnapshot" WHERE "testCaseId" = $1', ['guard-1']),
+      ).toEqual(before)
     })
 
     it('returns 404 for unknown and malformed keys', async () => {
       for (const key of ['NOPE-1', 'bad key', '%3Cscript%3E', 'ONEDS-']) {
-        const response = await fetch(`${server.url}/api/tests/by-key/${key}?project=${projectId}`, { headers: { cookie } })
+        const response = await fetch(`${server.url}/api/tests/by-key/${key}?project=${projectId}`, {
+          headers: { cookie },
+        })
         expect(response.status, key).toBe(404)
       }
     })
@@ -242,7 +278,10 @@ describe('route guards, return paths, and key lookup', () => {
          VALUES ('guard-foreign', 'guard-other-project', '29999', 'OTHER-1', 'REMOTE', now())`,
       )
       try {
-        const response = await fetch(`${server.url}/api/tests/by-key/OTHER-1?project=guard-other-project`, { headers: { cookie } })
+        const response = await fetch(
+          `${server.url}/api/tests/by-key/OTHER-1?project=guard-other-project`,
+          { headers: { cookie } },
+        )
         expect(response.status).toBe(404)
       } finally {
         await queryRows(`DELETE FROM "Project" WHERE id = 'guard-other-project'`)
@@ -250,8 +289,13 @@ describe('route guards, return paths, and key lookup', () => {
     })
 
     it('requires a session and a ready workspace', async () => {
-      expect((await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`)).status).toBe(401)
-      const response = await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=unassociated`, { headers: { cookie } })
+      expect(
+        (await fetch(`${server.url}/api/tests/by-key/ONEDS-14043?project=${projectId}`)).status,
+      ).toBe(401)
+      const response = await fetch(
+        `${server.url}/api/tests/by-key/ONEDS-14043?project=unassociated`,
+        { headers: { cookie } },
+      )
       expect(response.status).toBe(404)
     })
   })

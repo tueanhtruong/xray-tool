@@ -41,7 +41,7 @@ const GET_TEST_DETAILS_QUERY = `
         gherkin
         folder { path }
         lastModified
-        jira(fields: ["key", "summary", "labels", "status", "updated"])
+        jira(fields: ["key", "summary", "updated"])
       }
     }
   }
@@ -77,13 +77,16 @@ interface XrayConnectionRecord {
 
 function baseUrl(region: XrayRegion): string {
   const config = useRuntimeConfig()
-  return resolveXrayBaseUrl({
-    integrationTarget: (config.integrationTarget || 'live') as IntegrationTarget,
-    mockServicesUrl: config.mockServicesUrl || 'http://localhost:4010',
-    atlassianAuthUrl: config.atlassianAuthUrl || undefined,
-    atlassianApiUrl: config.atlassianApiUrl || undefined,
-    xrayBaseUrl: config.xrayBaseUrl || undefined,
-  }, region)
+  return resolveXrayBaseUrl(
+    {
+      integrationTarget: (config.integrationTarget || 'live') as IntegrationTarget,
+      mockServicesUrl: config.mockServicesUrl || 'http://localhost:4010',
+      atlassianAuthUrl: config.atlassianAuthUrl || undefined,
+      atlassianApiUrl: config.atlassianApiUrl || undefined,
+      xrayBaseUrl: config.xrayBaseUrl || undefined,
+    },
+    region,
+  )
 }
 
 function safeAuthMessage(status: number): string {
@@ -110,11 +113,12 @@ async function readXrayToken(response: Response): Promise<string> {
   } catch {
     // Xray deployments may return either a JSON string or the raw JWT response body.
   }
-  const token = typeof value === 'string'
-    ? value
-    : isRecord(value) && typeof value.token === 'string'
-      ? value.token
-      : undefined
+  const token =
+    typeof value === 'string'
+      ? value
+      : isRecord(value) && typeof value.token === 'string'
+        ? value.token
+        : undefined
   if (!token || !xrayJwtExpiresAt(token)) {
     throw new XrayError('Xray returned an invalid or expired JSON Web Token.')
   }
@@ -140,7 +144,8 @@ async function authenticate(
 
 async function loadConnection(workspaceId: string): Promise<XrayConnectionRecord> {
   const connection = await usePrisma().xrayConnection.findUnique({ where: { workspaceId } })
-  if (!connection) throw new XrayError('Connect this workspace to Xray Cloud before continuing.', 409)
+  if (!connection)
+    throw new XrayError('Connect this workspace to Xray Cloud before continuing.', 409)
   return connection
 }
 
@@ -191,13 +196,14 @@ async function getJwt(workspaceId: string): Promise<string> {
   }
   let pending = authentications.get(workspaceId)
   if (!pending) {
-    pending = authenticateAndPersist(workspaceId).catch(async (error) => {
-      const latest = await loadConnection(workspaceId)
-      if (latest.jwt && isXrayJwtReusable(latest.jwtExpiresAt ?? undefined)) {
-        return decryptSecret(latest.jwt, { context: `${JWT_CONTEXT}:${workspaceId}` })
-      }
-      throw error
-    })
+    pending = authenticateAndPersist(workspaceId)
+      .catch(async (error) => {
+        const latest = await loadConnection(workspaceId)
+        if (latest.jwt && isXrayJwtReusable(latest.jwtExpiresAt ?? undefined)) {
+          return decryptSecret(latest.jwt, { context: `${JWT_CONTEXT}:${workspaceId}` })
+        }
+        throw error
+      })
       .finally(() => authentications.delete(workspaceId))
     authentications.set(workspaceId, pending)
   }
@@ -218,9 +224,7 @@ async function invalidateJwt(workspaceId: string, jwt: string): Promise<void> {
 export function retryAfterMs(value: string | null, now = Date.now()): number | undefined {
   if (!value) return undefined
   const seconds = Number(value)
-  const delay = Number.isFinite(seconds) && seconds >= 0
-    ? seconds * 1000
-    : Date.parse(value) - now
+  const delay = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : Date.parse(value) - now
   if (!Number.isFinite(delay) || delay < 0) return undefined
   return Math.min(delay, MAX_RETRY_DELAY_MS)
 }
@@ -290,8 +294,12 @@ export function getWorkspaceXrayClient(workspaceId: string): WorkspaceXrayClient
           continue
         }
 
-        if ((response.status === 429 || response.status === 503) && attempt < MAX_GRAPHQL_ATTEMPTS - 1) {
-          const delay = retryAfterMs(response.headers.get('retry-after')) ?? backoffMs(transientRetries)
+        if (
+          (response.status === 429 || response.status === 503) &&
+          attempt < MAX_GRAPHQL_ATTEMPTS - 1
+        ) {
+          const delay =
+            retryAfterMs(response.headers.get('retry-after')) ?? backoffMs(transientRetries)
           transientRetries += 1
           await wait(delay)
           continue
@@ -353,39 +361,55 @@ export const XRAY_PULL_QUERIES = {
   testDetails: GET_TEST_DETAILS_QUERY,
 } as const
 
-export async function getXrayProjectRoot(workspaceId: string, projectId: string): Promise<XrayFolder> {
+export async function getXrayProjectRoot(
+  workspaceId: string,
+  projectId: string,
+): Promise<XrayFolder> {
   const result = await getWorkspaceXrayClient(workspaceId).graphql<{
-    getFolder: Omit<XrayFolder, 'testsCount' | 'folders'> & {
-      testsCount?: number | null
-      folders?: unknown
-    } | null
-  }>(
-    GET_FOLDER_QUERY,
-    { projectId, path: '/' },
-  )
+    getFolder:
+      | (Omit<XrayFolder, 'testsCount' | 'folders'> & {
+          testsCount?: number | null
+          folders?: unknown
+        })
+      | null
+  }>(GET_FOLDER_QUERY, { projectId, path: '/' })
   if (!result.getFolder || result.getFolder.path !== '/') {
     throw new XrayError('Xray returned an invalid root-folder response for this project.')
   }
-  return { ...result.getFolder, testsCount: result.getFolder.testsCount ?? 0, folders: result.getFolder.folders ?? [] }
+  return {
+    ...result.getFolder,
+    testsCount: result.getFolder.testsCount ?? 0,
+    folders: result.getFolder.folders ?? [],
+  }
 }
 
 export async function getXrayProjectFolders(
   workspaceId: string,
   projectId: string,
-): Promise<Array<{ name: string; path: string; parentPath: string | null; remoteTestsCount: number }>> {
+): Promise<
+  Array<{ name: string; path: string; parentPath: string | null; remoteTestsCount: number }>
+> {
   const client = getWorkspaceXrayClient(workspaceId)
-  const result = await client.graphql<{ getFolder: {
-    name: string | null
-    path: string
-    testsCount: number | null
-    preconditionsCount: number | null
-    issuesCount: number | null
-    folders: unknown
-  } | null }>(GET_FOLDER_QUERY, { projectId, path: '/' })
+  const result = await client.graphql<{
+    getFolder: {
+      name: string | null
+      path: string
+      testsCount: number | null
+      preconditionsCount: number | null
+      issuesCount: number | null
+      folders: unknown
+    } | null
+  }>(GET_FOLDER_QUERY, { projectId, path: '/' })
   const root = result.getFolder
-  if (!root || root.path !== '/') throw new XrayError('Xray returned an invalid root-folder response.')
+  if (!root || root.path !== '/')
+    throw new XrayError('Xray returned an invalid root-folder response.')
   const roots = parseFolderChildren(root.folders)
-  const folders: Array<{ name: string; path: string; parentPath: string | null; remoteTestsCount: number }> = []
+  const folders: Array<{
+    name: string
+    path: string
+    parentPath: string | null
+    remoteTestsCount: number
+  }> = []
   const pending = roots.map((folder) => ({ ...folder, parentPath: '/' }))
   const visited = new Set<string>()
   while (pending.length > 0) {
@@ -426,12 +450,23 @@ function parseFolderChildren(value: unknown): ParsedFolder[] {
       throw new XrayError('Xray returned an invalid folder entry.')
     }
     const testsCount = entry.testsCount
-    if (testsCount !== undefined && testsCount !== null && (!Number.isInteger(testsCount) || typeof testsCount !== 'number')) {
+    if (
+      testsCount !== undefined &&
+      testsCount !== null &&
+      (!Number.isInteger(testsCount) || typeof testsCount !== 'number')
+    ) {
       throw new XrayError('Xray returned an invalid folder test count.')
     }
     const issuesCount = entry.issuesCount
     const preconditionsCount = entry.preconditionsCount
-    if ([issuesCount, preconditionsCount].some((count) => count !== undefined && count !== null && (typeof count !== 'number' || !Number.isInteger(count)))) {
+    if (
+      [issuesCount, preconditionsCount].some(
+        (count) =>
+          count !== undefined &&
+          count !== null &&
+          (typeof count !== 'number' || !Number.isInteger(count)),
+      )
+    ) {
       throw new XrayError('Xray returned invalid folder counts.')
     }
     return {
@@ -449,7 +484,13 @@ export async function getXrayTestsPage(
   start: number,
   limit = 100,
 ): Promise<XrayTestPage> {
-  if (!Number.isInteger(start) || start < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+  if (
+    !Number.isInteger(start) ||
+    start < 0 ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 100
+  ) {
     throw new XrayError('Xray test pagination is invalid.')
   }
   const result = await getWorkspaceXrayClient(workspaceId).graphql<{
@@ -457,14 +498,23 @@ export async function getXrayTestsPage(
   }>(GET_TEST_INDEX_QUERY, { projectId, start, limit })
   const page = result.getTests
   if (
-    !page || !Number.isInteger(page.total) || page.total < 0 || page.start !== start ||
-    page.limit !== limit || !Array.isArray(page.results) || page.results.length > limit
+    !page ||
+    !Number.isInteger(page.total) ||
+    page.total < 0 ||
+    page.start !== start ||
+    page.limit !== limit ||
+    !Array.isArray(page.results) ||
+    page.results.length > limit
   ) {
     throw new XrayError('Xray returned an invalid test page.')
   }
   for (const entry of page.results) {
     const jira = isRecord(entry.jira) ? entry.jira : {}
-    if (typeof entry.issueId !== 'string' || typeof jira.key !== 'string' || typeof jira.summary !== 'string') {
+    if (
+      typeof entry.issueId !== 'string' ||
+      typeof jira.key !== 'string' ||
+      typeof jira.summary !== 'string'
+    ) {
       throw new XrayError('Xray returned an invalid test index entry.')
     }
   }
@@ -487,12 +537,18 @@ export async function getXrayTestDetailsByKeys(
   keys: string[],
   projectId?: string,
 ): Promise<XrayTestDetails[]> {
-  if (keys.length < 1 || keys.length > 100 || keys.some((key) => !/^[A-Z][A-Z0-9_]*-\d+$/.test(key)) || new Set(keys).size !== keys.length) {
+  if (
+    keys.length < 1 ||
+    keys.length > 100 ||
+    keys.some((key) => !/^[A-Z][A-Z0-9_]*-\d+$/.test(key)) ||
+    new Set(keys).size !== keys.length
+  ) {
     throw new XrayError('Xray test keys are invalid.')
   }
-  const issueQuery = keys.length === 1
-    ? `key = "${keys[0]}"`
-    : `key in (${keys.map((key) => `"${key}"`).join(', ')})`
+  const issueQuery =
+    keys.length === 1
+      ? `key = "${keys[0]}"`
+      : `key in (${keys.map((key) => `"${key}"`).join(', ')})`
   const jql = projectId ? `${issueQuery} AND project = ${projectId}` : issueQuery
   const result = await getWorkspaceXrayClient(workspaceId).graphql<{
     getTests: { results: XrayTestDetails[] } | null
@@ -505,15 +561,21 @@ export async function getXrayTestDetailsByKeys(
   const found = new Set<string>()
   for (const test of tests) {
     const jira = isRecord(test.jira) ? test.jira : {}
-    if (typeof test.issueId !== 'string' || typeof jira.key !== 'string' || typeof jira.summary !== 'string' || !requested.has(jira.key) || found.has(jira.key)) {
+    if (
+      typeof test.issueId !== 'string' ||
+      typeof jira.key !== 'string' ||
+      typeof jira.summary !== 'string' ||
+      !requested.has(jira.key) ||
+      found.has(jira.key)
+    ) {
       throw new XrayError('Xray returned an invalid test details response.')
     }
     found.add(jira.key)
   }
-  if (found.size !== keys.length) throw new XrayError('Xray did not return details for every requested test.', 404)
+  if (found.size !== keys.length)
+    throw new XrayError('Xray did not return details for every requested test.', 404)
   return tests
 }
-
 
 export async function verifyXrayCredentials(
   region: XrayRegion,
@@ -527,7 +589,9 @@ export async function verifyXrayCredentials(
     return { jwt, expiresAt }
   } catch (error) {
     if (error instanceof XrayError) throw error
-    throw new XrayError('Xray authentication could not be completed. Check the Xray service and try again.')
+    throw new XrayError(
+      'Xray authentication could not be completed. Check the Xray service and try again.',
+    )
   }
 }
 

@@ -144,7 +144,7 @@ As a <role>, I want <capability>, so that <benefit>.
 These shape several stories. Each is recorded as a decision in US-00 and can be revised before the dependent story starts.
 
 1. **One scenario = one Xray Cucumber test.** Summary = scenario name; Xray Gherkin definition = scenario steps (plus `Examples` for outlines).
-2. **Labels = scenario-level tags** minus `@xray-KEY`. Feature-level tags and `Background` are kept for Markdown round-trip but not synced (Xray models Background as Precondition issues — out of scope for v1).
-3. **Editable fields v1:** summary, labels, Jira status (via workflow transitions), Gherkin definition. Manual/Generic tests are listed read-only.
+2. **Tags are not synced** ([ADR 0016](../decisions/0016-stop-tag-sync-and-labels.md)). `@xray-KEY` links a scenario to its Xray test; other Gherkin tags stay in the Markdown text. Feature-level tags and `Background` are kept for Markdown round-trip but not synced (Xray models Background as Precondition issues — out of scope for v1).
+3. **Editable fields v1:** summary, Jira status (via workflow transitions), Gherkin definition. Labels are removed ([ADR 0016](../decisions/0016-stop-tag-sync-and-labels.md)). Manual/Generic tests are listed read-only.
 4. **Single-user workspaces** in v1. Team sharing and billing are out of scope.
 5. **Markdown container:** a `.md` file with one or more fenced ` ```gherkin ` blocks; raw Gherkin (no fences) is also accepted on import.

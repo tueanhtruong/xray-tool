@@ -79,11 +79,15 @@ export function createMockApp() {
           xrayUnavailableRemaining = Math.max(0, Math.floor(body.xrayUnavailableRemaining))
         }
         if (typeof body.xrayFolderMode === 'string') xrayFolderMode = body.xrayFolderMode
-        if (typeof body.xrayFolderFailurePath === 'string') xrayFolderFailurePath = body.xrayFolderFailurePath
+        if (typeof body.xrayFolderFailurePath === 'string')
+          xrayFolderFailurePath = body.xrayFolderFailurePath
         if (typeof body.xrayTestMode === 'string') xrayTestMode = body.xrayTestMode
-        if (typeof body.xrayTestRevision === 'number') xrayTestRevision = Math.max(0, Math.floor(body.xrayTestRevision))
-        if (typeof body.xrayTestFailureStart === 'number') xrayTestFailureStart = Math.floor(body.xrayTestFailureStart)
-        if (typeof body.xrayDelayMs === 'number') xrayDelayMs = Math.max(0, Math.min(10_000, Math.floor(body.xrayDelayMs)))
+        if (typeof body.xrayTestRevision === 'number')
+          xrayTestRevision = Math.max(0, Math.floor(body.xrayTestRevision))
+        if (typeof body.xrayTestFailureStart === 'number')
+          xrayTestFailureStart = Math.floor(body.xrayTestFailureStart)
+        if (typeof body.xrayDelayMs === 'number')
+          xrayDelayMs = Math.max(0, Math.min(10_000, Math.floor(body.xrayDelayMs)))
         if (body.resetXrayCounts === true) {
           xrayAuthenticateCount = 0
           xrayGraphqlCount = 0
@@ -184,7 +188,9 @@ export function createMockApp() {
         if (xrayMode === 'graphql-errors') {
           return { errors: [{ message: 'API key lacks permission for project DEMO' }] }
         }
-        const variables = body.variables as { projectId?: unknown; path?: unknown; start?: unknown; limit?: unknown; jql?: unknown } | undefined
+        const variables = body.variables as
+          | { projectId?: unknown; path?: unknown; start?: unknown; limit?: unknown; jql?: unknown }
+          | undefined
         if (variables?.projectId === '999' || xrayMode === 'project-denied') {
           return { errors: [{ message: 'API key lacks permission for this project' }] }
         }
@@ -206,7 +212,9 @@ export function createMockApp() {
           if (xrayDelayMs) await new Promise((resolve) => setTimeout(resolve, xrayDelayMs))
           const jql = String(variables?.jql ?? '')
           const keys = [...jql.matchAll(/"([A-Z][A-Z0-9_]*-\d+)"/g)].map((match) => match[1])
-          const tests = mockTests(xrayTestMode, xrayTestRevision).filter((item) => keys.includes(item.jira.key))
+          const tests = mockTests(xrayTestMode, xrayTestRevision).filter((item) =>
+            keys.includes(item.jira.key),
+          )
           return { data: { getTests: { results: tests.slice(0, Number(variables?.limit ?? 1)) } } }
         }
         if (body.query && String(body.query).includes('GetTestIndex')) {
@@ -217,11 +225,13 @@ export function createMockApp() {
           if (xrayTestFailureStart >= 0 && start >= xrayTestFailureStart) {
             return { errors: [{ message: 'Test page failed in mock' }] }
           }
-          const tests = mockTests(xrayTestMode, xrayTestRevision).map(({ issueId, folder, jira }) => ({
-            issueId,
-            folder,
-            jira: { key: jira.key, summary: jira.summary },
-          }))
+          const tests = mockTests(xrayTestMode, xrayTestRevision).map(
+            ({ issueId, folder, jira }) => ({
+              issueId,
+              folder,
+              jira: { key: jira.key, summary: jira.summary },
+            }),
+          )
           return {
             data: {
               getTests: {
@@ -335,7 +345,9 @@ export function createMockApp() {
           { id: '999', key: 'ABC', name: 'Restricted Project' },
         ].filter((project) => {
           if (projectMode === 'no-test' && project.key === 'ONEDS') return true
-          return `${project.key} ${project.name}`.toLowerCase().includes(String(query.query ?? '').toLowerCase())
+          return `${project.key} ${project.name}`
+            .toLowerCase()
+            .includes(String(query.query ?? '').toLowerCase())
         })
         const startAt = Number(query.startAt ?? 0)
         const maxResults = Number(query.maxResults ?? 20)
@@ -364,9 +376,13 @@ export function createMockApp() {
         }
         return {
           ...project,
-          issueTypes: projectMode === 'no-test' && project.key === 'ONEDS'
-            ? [{ id: '10000', name: 'Story' }]
-            : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }],
+          issueTypes:
+            projectMode === 'no-test' && project.key === 'ONEDS'
+              ? [{ id: '10000', name: 'Story' }]
+              : [
+                  { id: '10000', name: 'Story' },
+                  { id: '10001', name: 'Test' },
+                ],
         }
       }),
     )
@@ -376,13 +392,23 @@ export function createMockApp() {
         const query = getQuery(event)
         return projectMode === 'no-test' && query.projectId === '10001'
           ? [{ id: '10000', name: 'Story' }]
-          : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }]
+          : [
+              { id: '10000', name: 'Story' },
+              { id: '10001', name: 'Test' },
+            ]
       }),
     )
     .get(
       '/atlassian-api/ex/jira/:cloudId/rest/api/3/project/:projectId/statuses',
       defineEventHandler(() => [
-        { id: '10001', name: 'Test', statuses: [{ id: '1', name: 'To Do' }, { id: '2', name: 'Ready' }] },
+        {
+          id: '10001',
+          name: 'Test',
+          statuses: [
+            { id: '1', name: 'To Do' },
+            { id: '2', name: 'Ready' },
+          ],
+        },
       ]),
     )
     .get(
@@ -402,7 +428,11 @@ export function createMockApp() {
           { id: '10001', key: 'ONEDS', name: 'One Design System' },
           { id: '10002', key: 'DEMO', name: 'Demo Project' },
           { id: '999', key: 'ABC', name: 'Restricted Project' },
-        ].filter((project) => `${project.key} ${project.name}`.toLowerCase().includes(String(query.query ?? '').toLowerCase()))
+        ].filter((project) =>
+          `${project.key} ${project.name}`
+            .toLowerCase()
+            .includes(String(query.query ?? '').toLowerCase()),
+        )
         const startAt = Number(query.startAt ?? 0)
         const maxResults = Number(query.maxResults ?? 20)
         const values = projects.slice(startAt, startAt + maxResults)
@@ -430,9 +460,13 @@ export function createMockApp() {
         }
         return {
           ...project,
-          issueTypes: projectMode === 'no-test' && project.key === 'ONEDS'
-            ? [{ id: '10000', name: 'Story' }]
-            : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }],
+          issueTypes:
+            projectMode === 'no-test' && project.key === 'ONEDS'
+              ? [{ id: '10000', name: 'Story' }]
+              : [
+                  { id: '10000', name: 'Story' },
+                  { id: '10001', name: 'Test' },
+                ],
         }
       }),
     )
@@ -442,13 +476,23 @@ export function createMockApp() {
         const query = getQuery(event)
         return projectMode === 'no-test' && query.projectId === '10001'
           ? [{ id: '10000', name: 'Story' }]
-          : [{ id: '10000', name: 'Story' }, { id: '10001', name: 'Test' }]
+          : [
+              { id: '10000', name: 'Story' },
+              { id: '10001', name: 'Test' },
+            ]
       }),
     )
     .get(
       '/jira-site/rest/api/3/project/:projectId/statuses',
       defineEventHandler(() => [
-        { id: '10001', name: 'Test', statuses: [{ id: '1', name: 'To Do' }, { id: '2', name: 'Ready' }] },
+        {
+          id: '10001',
+          name: 'Test',
+          statuses: [
+            { id: '1', name: 'To Do' },
+            { id: '2', name: 'Ready' },
+          ],
+        },
       ]),
     )
     .get(
@@ -479,8 +523,10 @@ export function createMockApp() {
       if (path.includes('/rest/api/') && method !== 'GET' && method !== 'HEAD') {
         writeRequestCount += 1
       } else if (path === '/xray/api/v2/graphql' && method === 'POST') {
-        const body = (await readBody(event).catch(() => undefined)) as { query?: unknown } | undefined
-        if (typeof body?.query === 'string' && /^\s*mutation\b/.test(body.query)) writeRequestCount += 1
+        const body = (await readBody(event).catch(() => undefined)) as
+          { query?: unknown } | undefined
+        if (typeof body?.query === 'string' && /^\s*mutation\b/.test(body.query))
+          writeRequestCount += 1
       }
     }),
   )
@@ -488,62 +534,142 @@ export function createMockApp() {
   return app
 }
 
-function mockFolders(mode: string): Map<string, {
-  name: string
-  path: string
-  testsCount: number
-  preconditionsCount: number
-  issuesCount: number
-  folders: Array<{
+function mockFolders(mode: string): Map<
+  string,
+  {
     name: string
     path: string
     testsCount: number
     preconditionsCount: number
     issuesCount: number
-    folders: unknown[]
-  }>
-}> {
-  const tree = new Map<string, {
-    name: string
-    path: string
-    testsCount: number
-    preconditionsCount: number
-    issuesCount: number
-    folders: Array<{ name: string; path: string; testsCount: number; preconditionsCount: number; issuesCount: number; folders: unknown[] }>
-  }>()
+    folders: Array<{
+      name: string
+      path: string
+      testsCount: number
+      preconditionsCount: number
+      issuesCount: number
+      folders: unknown[]
+    }>
+  }
+> {
+  const tree = new Map<
+    string,
+    {
+      name: string
+      path: string
+      testsCount: number
+      preconditionsCount: number
+      issuesCount: number
+      folders: Array<{
+        name: string
+        path: string
+        testsCount: number
+        preconditionsCount: number
+        issuesCount: number
+        folders: unknown[]
+      }>
+    }
+  >()
   if (mode === 'flat') {
     tree.set('/', {
-      name: '', path: '/', testsCount: 0, preconditionsCount: 0, issuesCount: 0,
+      name: '',
+      path: '/',
+      testsCount: 0,
+      preconditionsCount: 0,
+      issuesCount: 0,
       folders: [
-        { name: 'Autocomplete', path: '/Autocomplete', testsCount: 3, preconditionsCount: 0, issuesCount: 3, folders: [
-          { name: 'Focus', path: '/Autocomplete/Focus', testsCount: 1, preconditionsCount: 0, issuesCount: 1, folders: [] },
-        ] },
-        { name: 'Billing', path: '/Billing', testsCount: 2, preconditionsCount: 0, issuesCount: 2, folders: [] },
-        { name: 'Search', path: '/Search', testsCount: 0, preconditionsCount: 0, issuesCount: 0, folders: [] },
+        {
+          name: 'Autocomplete',
+          path: '/Autocomplete',
+          testsCount: 3,
+          preconditionsCount: 0,
+          issuesCount: 3,
+          folders: [
+            {
+              name: 'Focus',
+              path: '/Autocomplete/Focus',
+              testsCount: 1,
+              preconditionsCount: 0,
+              issuesCount: 1,
+              folders: [],
+            },
+          ],
+        },
+        {
+          name: 'Billing',
+          path: '/Billing',
+          testsCount: 2,
+          preconditionsCount: 0,
+          issuesCount: 2,
+          folders: [],
+        },
+        {
+          name: 'Search',
+          path: '/Search',
+          testsCount: 0,
+          preconditionsCount: 0,
+          issuesCount: 0,
+          folders: [],
+        },
       ],
     })
   } else if (mode === 'deep') {
-    const roots: Array<{ name: string; path: string; testsCount: number; preconditionsCount: number; issuesCount: number; folders: unknown[] }> = []
+    const roots: Array<{
+      name: string
+      path: string
+      testsCount: number
+      preconditionsCount: number
+      issuesCount: number
+      folders: unknown[]
+    }> = []
     let children = roots
     let path = ''
     for (let depth = 1; depth <= 6; depth += 1) {
       path += `/Level${depth}`
-      const entry = { name: `Level${depth}`, path, testsCount: depth, preconditionsCount: 0, issuesCount: depth, folders: [] as unknown[] }
+      const entry = {
+        name: `Level${depth}`,
+        path,
+        testsCount: depth,
+        preconditionsCount: 0,
+        issuesCount: depth,
+        folders: [] as unknown[],
+      }
       children.push(entry)
       children = entry.folders as typeof roots
     }
-    tree.set('/', { name: '', path: '/', testsCount: 0, preconditionsCount: 0, issuesCount: 0, folders: roots })
+    tree.set('/', {
+      name: '',
+      path: '/',
+      testsCount: 0,
+      preconditionsCount: 0,
+      issuesCount: 0,
+      folders: roots,
+    })
   } else if (mode === 'large') {
     tree.set('/', {
-      name: '', path: '/', testsCount: 0, preconditionsCount: 0, issuesCount: 500,
+      name: '',
+      path: '/',
+      testsCount: 0,
+      preconditionsCount: 0,
+      issuesCount: 500,
       folders: Array.from({ length: 500 }, (_, index) => ({
         name: `Folder-${String(index + 1).padStart(3, '0')}`,
         path: `/Folder-${String(index + 1).padStart(3, '0')}`,
-        testsCount: 0, preconditionsCount: 0, issuesCount: 0, folders: [],
+        testsCount: 0,
+        preconditionsCount: 0,
+        issuesCount: 0,
+        folders: [],
       })),
     })
   } else {
-    tree.set('/', { name: '', path: '/', testsCount: 0, preconditionsCount: 0, issuesCount: 0, folders: [] })
+    tree.set('/', {
+      name: '',
+      path: '/',
+      testsCount: 0,
+      preconditionsCount: 0,
+      issuesCount: 0,
+      folders: [],
+    })
   }
   return tree
 }
@@ -556,17 +682,24 @@ function mockTests(mode: string, revision = 0) {
     const generic = index === 4
     return {
       issueId: String(20000 + index),
-      testType: { name: manual ? 'Manual' : generic ? 'Generic' : 'Cucumber', kind: manual ? 'Steps' : generic ? 'Unstructured' : 'Gherkin' },
-      gherkin: manual || generic ? null : index === 1
-        ? 'Scenario Outline: Search\n Given a query <term>\n Examples:\n | term |\n | one |'
-        : `Scenario: ${key}\n Given a repository test`,
+      testType: {
+        name: manual ? 'Manual' : generic ? 'Generic' : 'Cucumber',
+        kind: manual ? 'Steps' : generic ? 'Unstructured' : 'Gherkin',
+      },
+      gherkin:
+        manual || generic
+          ? null
+          : index === 1
+            ? 'Scenario Outline: Search\n Given a query <term>\n Examples:\n | term |\n | one |'
+            : `Scenario: ${key}\n Given a repository test`,
       folder: { path: index % 2 === 0 ? '/Autocomplete' : '/Autocomplete/Focus' },
       lastModified: '2026-09-30T00:00:00.000Z',
       jira: {
         key,
-        summary: index === 2 ? '<img src=x onerror=alert(1)>' : `Repository test ${index + 1}${revision ? ` revision ${revision}` : ''}`,
-        labels: index % 2 === 0 ? ['need-review', 'ui'] : ['api', ...(revision ? [`revision-${revision}`] : [])],
-        status: { name: index % 2 === 0 ? revision ? 'In Progress' : 'Ready' : 'To Do' },
+        summary:
+          index === 2
+            ? '<img src=x onerror=alert(1)>'
+            : `Repository test ${index + 1}${revision ? ` revision ${revision}` : ''}`,
         updated: '2026-09-30T00:00:00.000Z',
       },
     }

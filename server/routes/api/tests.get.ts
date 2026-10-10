@@ -2,11 +2,9 @@ import { getQuery } from 'h3'
 import { z } from 'zod'
 import { getAppSession } from '../../utils/session'
 import { requireAuthorizedProject } from '../../services/project-selection'
+import { indexFilterSchema, testIndexWhere } from '../../services/test-index'
 
-const querySchema = z.object({
-  q: z.string().trim().max(200).optional().default(''),
-  folder: z.string().max(512).optional(),
-  includeDescendants: z.enum(['true', 'false']).optional().default('false'),
+const querySchema = indexFilterSchema.extend({
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).max(100_000).optional().default(0),
 })
@@ -23,29 +21,10 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) throw httpError(400, 'Test query parameters are invalid.')
   const params = parsed.data
   const projectId = getQuery(event).project
-  if (typeof projectId !== 'string') throw httpError(409, 'Choose a project before opening the test repository.')
+  if (typeof projectId !== 'string')
+    throw httpError(409, 'Choose a project before opening the test repository.')
   const project = await requireAuthorizedProject(workspace.id, projectId)
-  const where: Record<string, unknown> = {
-    projectId,
-    origin: 'REMOTE',
-    remoteDeletedAt: null,
-  }
-  const and: Record<string, unknown>[] = []
-  if (params.folder && params.includeDescendants === 'true') {
-    and.push({ OR: [
-      { folderPath: params.folder },
-      { folderPath: { startsWith: `${params.folder === '/' ? '' : params.folder}/` } },
-    ] })
-  } else if (params.folder) {
-    where.folderPath = params.folder
-  }
-  if (params.q) {
-    and.push({ OR: [
-      { key: { contains: params.q, mode: 'insensitive' } },
-      { summary: { contains: params.q, mode: 'insensitive' } },
-    ] })
-  }
-  if (and.length > 0) where.AND = and
+  const where = testIndexWhere(projectId, params)
   const prisma = usePrisma()
   const [total, tests, drafts, draftCount] = await prisma.$transaction([
     prisma.testCase.count({ where: where as never }),
@@ -69,7 +48,8 @@ export default defineEventHandler(async (event) => {
         id: testCase.id,
         issueId: testCase.issueId,
         key: testCase.key,
-        summary: draft?.baseAvailable && draft.summary !== null ? draft.summary : testCase.summary ?? '',
+        summary:
+          draft?.baseAvailable && draft.summary !== null ? draft.summary : (testCase.summary ?? ''),
         folderPath: testCase.folderPath,
         remoteDeletedAt: testCase.remoteDeletedAt,
         hasDraft: Boolean(draft?.baseAvailable),
@@ -79,7 +59,7 @@ export default defineEventHandler(async (event) => {
     limit: params.limit,
     offset: params.offset,
     nextOffset: params.offset + tests.length < total ? params.offset + tests.length : null,
-    project: { id: project.id, key: project.jiraProjectKey, name: project.jiraProjectName, statuses: project.projectStatuses },
+    project: { id: project.id, key: project.jiraProjectKey, name: project.jiraProjectName },
     draftCount,
   }
 })

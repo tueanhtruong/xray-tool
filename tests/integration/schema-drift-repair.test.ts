@@ -73,13 +73,13 @@ describe('forward schema-drift repair', () => {
       [testCase, projectA, `${suffix}-issue`],
     )
     await client.query(
-      `INSERT INTO "TestCaseSnapshot" (id,"testCaseId",summary,labels,status,fingerprint)
-       VALUES ($1,$2,'Immutable base',ARRAY['base'],'Ready','base-fingerprint')`,
+      `INSERT INTO "TestCaseSnapshot" (id,"testCaseId",summary,fingerprint)
+       VALUES ($1,$2,'Immutable base','base-fingerprint')`,
       [`${suffix}-snapshot`, testCase],
     )
     await client.query(
-      `INSERT INTO "TestCaseDraft" (id,"userId","testCaseId",summary,"baseSummary","baseLabels","baseStatus","baseFingerprint","updatedAt")
-       VALUES ($1,$2,$3,'Draft edit','Immutable base',ARRAY['base'],'Ready','base-fingerprint',now())`,
+      `INSERT INTO "TestCaseDraft" (id,"userId","testCaseId",summary,"baseSummary","baseFingerprint","updatedAt")
+       VALUES ($1,$2,$3,'Draft edit','Immutable base','base-fingerprint',now())`,
       [`${suffix}-draft`, userA, testCase],
     )
     await client.query(
